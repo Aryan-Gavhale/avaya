@@ -1,0 +1,19 @@
+{% extends "public/base.html" %}
+
+{% block content %}
+{% for s in sections %}
+  {% set row = s.row %}
+  {% set d = s.data %}
+  {% set x = s.extra %}
+  {% include "public/sections/" ~ s.type ~ ".html" ignore missing %}
+{% endfor %}
+{% if not sections %}
+<section class="sect">
+  <div class="shell">
+    <h1 class="h-lg">{{ page.title }}</h1>
+    <p class="lede">This page has no published sections yet. Add one from the admin panel.</p>
+    <p style="margin-top:24px"><a class="btn btn--primary" href="{{ url_for('admin.page_edit', row_id=page.id) }}">Edit this page</a></p>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

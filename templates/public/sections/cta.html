@@ -1,0 +1,19 @@
+{% from "public/_icons.html" import arrow %}
+<section class="sect sect--{{ d.tone or 'ink' }} sect--tight band" id="{{ row.anchor or 'sec-' ~ row.id }}" data-sec="{{ row.type }}">
+  {% if d.media_id %}
+  <div class="band__bg" aria-hidden="true">
+    <img src="{{ media_url(d.media_id, 'medium') }}" alt="" loading="lazy">
+  </div>
+  {% endif %}
+  <div class="shell band__in">
+    <div>
+      {% if row.eyebrow %}<span class="kicker rv rv--fade">{{ row.eyebrow }}</span>{% endif %}
+      {% if row.title %}<h2 class="h-lg rv">{{ row.title }}</h2>{% endif %}
+      {% if row.subtitle %}<p class="lede rv" style="--i:1">{{ row.subtitle }}</p>{% endif %}
+    </div>
+    <div class="band__cta rv rv--right" style="--i:2">
+      {% if d.primary_label %}<a class="btn btn--white btn--lg" href="{{ d.primary_url or '#enquiry' }}">{{ d.primary_label }}{{ arrow() }}</a>{% endif %}
+      {% if d.secondary_label %}<a class="btn btn--onDark btn--lg" href="{{ d.secondary_url or '#' }}">{{ d.secondary_label }}</a>{% endif %}
+    </div>
+  </div>
+</section>

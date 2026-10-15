@@ -1,0 +1,31 @@
+<section class="sect sect--{{ d.tone or 'canvas' }}" id="{{ row.anchor or 'sec-' ~ row.id }}" data-sec="{{ row.type }}">
+  <div class="shell">
+    <div class="head2 rv rv--fade">
+      {% if row.eyebrow %}<span class="kicker">{{ row.eyebrow }}</span>{% endif %}
+      {% if row.title %}<h2 class="h-lg">{{ row.title }}</h2>{% endif %}
+      {% if row.subtitle %}<p class="lede">{{ row.subtitle }}</p>{% endif %}
+    </div>
+    <div class="docs">
+      {% for doc in x.get('doctors', []) %}
+      <article class="doc rv" style="--i:{{ loop.index0 }}">
+        {% if doc.media_id %}
+        <div class="doc__media">
+          <img src="{{ media_url(doc.media_id, 'medium') }}" alt="{{ doc.name }}, {{ doc.role_title }}" loading="lazy" width="600" height="650">
+        </div>
+        {% endif %}
+        <div class="doc__body">
+          <h3 class="doc__n">{{ doc.name }}</h3>
+          <div class="doc__r">{{ doc.role_title }}{% if doc.experience_yr %} &middot; {{ doc.experience_yr }} yrs{% endif %}</div>
+          {% if doc.qualification %}<p class="doc__q">{{ doc.qualification }}</p>{% endif %}
+          {% if doc.specialities %}
+          <div class="doc__spec">
+            {% for tag in doc.specialities|as_list %}<span class="tag">{{ tag }}</span>{% endfor %}
+          </div>
+          {% endif %}
+          {% if doc.reg_no %}<div class="doc__reg">Reg. {{ doc.reg_no }}</div>{% endif %}
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>

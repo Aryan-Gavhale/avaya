@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="{{ brand.name }}">
+<title>{{ meta_title or (brand.name ~ ' | ' ~ brand.tagline) }}</title>
+<meta name="description" content="{{ meta_description or S('seo.default_description') }}">
+{% if not S('seo.indexable', true) %}<meta name="robots" content="noindex, nofollow">{% endif %}
+<meta property="og:type" content="website">
+<meta property="og:title" content="{{ meta_title or brand.name }}">
+<meta property="og:description" content="{{ meta_description or S('seo.default_description') }}">
+{% if og_url %}<meta property="og:image" content="{{ og_url }}">{% endif %}
+<meta name="theme-color" content="{{ theme.primary }}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="{{ theme.font_url }}" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/site.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/phone.css') }}" media="(max-width: 760px)">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='{{ theme.primary|urlencode }}'/><text x='16' y='22' font-family='serif' font-size='17' fill='white' text-anchor='middle'>A</text></svg>">
+<style>
+  :root{
+    --primary:{{ theme.primary }};
+    --primary-dark:{{ theme.primary_dark }};
+    --accent:{{ theme.accent }};
+    --ink:{{ theme.ink }};
+    --muted:{{ theme.muted }};
+    --surface:{{ theme.surface }};
+    --canvas:{{ theme.canvas }};
+    --radius:{{ theme.radius }}px;
+    --font-display:'{{ theme.font_display }}', Georgia, serif;
+    --font-body:'{{ theme.font_body }}', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+</style>
+{% block head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}{% if not theme.animations %} no-anim{% endif %}" data-anim="{{ 1 if theme.animations else 0 }}">
+
+<a class="skip" href="#main">Skip to content</a>
+
+<div class="topline">
+  <div class="shell topline__in">
+    <span class="topline__item">
+      <span class="dot {{ 'dot--on' if open_state.open_now else 'dot--off' }}" aria-hidden="true"></span>
+      <strong>{{ open_state.label }}</strong>
+      {% if open_state.detail %}<span class="topline__sub">{{ open_state.detail }}</span>{% endif %}
+    </span>
+    <span class="topline__spacer"></span>
+    {% if contact.emergency %}
+    <span class="topline__item topline__item--hide">Out of hours <a href="tel:{{ contact.emergency|replace(' ','') }}">{{ contact.emergency }}</a></span>
+    {% endif %}
+    <a class="topline__item" href="tel:{{ contact.phone|replace(' ','') }}">{{ contact.phone_display or contact.phone }}</a>
+  </div>
+</div>
+
+<header class="head" id="head">
+  <div class="shell head__in">
+    <a class="brandmark" href="/" aria-label="{{ brand.name }} home">
+      {% if brand.logo_media_id %}
+        <img class="brandmark__img" src="{{ media_url(brand.logo_media_id, 'thumb') }}" alt="{{ brand.name }}">
+      {% else %}
+        <span class="brandmark__glyph" aria-hidden="true">
+          <svg viewBox="0 0 24 28" fill="none"><path d="M12 3c-3.2-2-7.4-1-8.6 2.6C2.1 9.5 3.6 14 5 18.6c.8 2.6 1.3 6.4 3.2 6.4 1.8 0 1.6-4.2 3.8-4.2s2 4.2 3.8 4.2c1.9 0 2.4-3.8 3.2-6.4 1.4-4.6 2.9-9.1 1.6-13-1.2-3.6-5.4-4.6-8.6-2.6Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+        </span>
+        <span class="brandmark__text">
+          <span class="brandmark__name">{{ brand.name }}</span>
+          <span class="brandmark__sub">{{ brand.city }}{% if brand.established %} &middot; est. {{ brand.established }}{% endif %}</span>
+        </span>
+      {% endif %}
+    </a>
+
+    <nav class="mainnav" aria-label="Main">
+      {% for item in header_nav %}
+      <a class="mainnav__a" href="{{ item.url }}">{{ item.label }}</a>
+      {% endfor %}
+    </nav>
+
+    <div class="head__cta">
+      <a class="appbtn" href="tel:{{ contact.phone|replace(' ','') }}" aria-label="Call the clinic">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 3h2.7l1.4 4-2 1.4a11 11 0 0 0 5 5l1.4-2 4 1.4v2.7c0 1-.8 1.8-1.8 1.7A15 15 0 0 1 4.9 4.8C4.8 3.8 5.6 3 6.6 3Z" fill="currentColor"/></svg>
+      </a>
+      {% if contact.whatsapp %}
+      <a class="iconbtn" href="https://wa.me/{{ contact.whatsapp }}" target="_blank" rel="noopener" aria-label="WhatsApp the clinic">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.5 15.2L2 22l4.9-1.4A10 10 0 1 0 12 2Zm0 18a8 8 0 0 1-4.1-1.1l-.3-.2-2.9.8.8-2.8-.2-.3A8 8 0 1 1 12 20Zm4.5-5.9c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.5 6.5 0 0 1-3.2-2.8c-.1-.2 0-.4.1-.5l.7-.8c.1-.2.1-.3 0-.5l-.7-1.7c-.2-.4-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.4-.3.3-.9 1-.9 2.3 0 1.4 1 2.7 1.1 2.9.1.2 1.8 2.9 4.5 3.9 2.2.9 2.7.7 3.2.7.5 0 1.6-.7 1.8-1.3.2-.7.2-1.2.2-1.3-.1-.2-.2-.2-.4-.3Z" fill="currentColor"/></svg>
+      </a>
+      {% endif %}
+      <a class="btn btn--primary btn--sm" href="/#enquiry">Book an appointment</a>
+      <button class="burger" type="button" aria-expanded="false" aria-controls="drawer" aria-label="Open menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+  <div class="head__rule" aria-hidden="true"><i id="scrollbar"></i></div>
+</header>
+
+<div class="drawer" id="drawer" hidden>
+  <nav class="drawer__nav" aria-label="Mobile">
+    {% for item in header_nav %}
+    <a class="drawer__a" href="{{ item.url }}">{{ item.label }}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"/></svg></a>
+    {% endfor %}
+  </nav>
+  <div class="drawer__foot">
+    <a class="btn btn--primary btn--block" href="/#enquiry">Book an appointment</a>
+    <a class="drawer__tel" href="tel:{{ contact.phone|replace(' ','') }}">{{ contact.phone_display or contact.phone }}</a>
+  </div>
+</div>
+
+<main id="main">
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="foot">
+  <div class="shell foot__grid">
+    <div class="foot__brand">
+      <span class="brandmark brandmark--foot">
+        <span class="brandmark__glyph" aria-hidden="true">
+          <svg viewBox="0 0 24 28" fill="none"><path d="M12 3c-3.2-2-7.4-1-8.6 2.6C2.1 9.5 3.6 14 5 18.6c.8 2.6 1.3 6.4 3.2 6.4 1.8 0 1.6-4.2 3.8-4.2s2 4.2 3.8 4.2c1.9 0 2.4-3.8 3.2-6.4 1.4-4.6 2.9-9.1 1.6-13-1.2-3.6-5.4-4.6-8.6-2.6Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+        </span>
+        <span class="brandmark__text">
+          <span class="brandmark__name">{{ brand.name }}</span>
+          <span class="brandmark__sub">{{ brand.tagline }}</span>
+        </span>
+      </span>
+      <p class="foot__note">{{ S('seo.default_description') }}</p>
+      <div class="foot__social">
+        {% if social.instagram %}<a href="{{ social.instagram }}" target="_blank" rel="noopener">Instagram</a>{% endif %}
+        {% if social.facebook %}<a href="{{ social.facebook }}" target="_blank" rel="noopener">Facebook</a>{% endif %}
+        {% if social.youtube %}<a href="{{ social.youtube }}" target="_blank" rel="noopener">YouTube</a>{% endif %}
+        {% if social.google %}<a href="{{ social.google }}" target="_blank" rel="noopener">Google</a>{% endif %}
+      </div>
+    </div>
+
+    <div class="foot__col">
+      <h3 class="foot__h">The practice</h3>
+      <ul class="foot__list">
+        {% for item in footer_nav %}<li><a href="{{ item.url }}">{{ item.label }}</a></li>{% endfor %}
+      </ul>
+    </div>
+
+    <div class="foot__col">
+      <h3 class="foot__h">Treatments</h3>
+      <ul class="foot__list">
+        {% for item in footer_nav2 %}<li><a href="{{ item.url }}">{{ item.label }}</a></li>{% endfor %}
+      </ul>
+    </div>
+
+    <div class="foot__col foot__col--wide">
+      <h3 class="foot__h">Visit us</h3>
+      {% for b in site_branches %}
+      <div class="foot__branch">
+        <strong>{{ b.name }}</strong>
+        <span>{{ b.address }}{% if b.pincode %}, {{ b.pincode }}{% endif %}</span>
+        <a href="tel:{{ b.phone|replace(' ','') }}">{{ b.phone }}</a>
+      </div>
+      {% endfor %}
+      <div class="foot__hours">
+        {% for line in hours_rows %}
+        <span><i>{{ line.days }}</i>{{ line.text }}</span>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="shell foot__base">
+    <span>&copy; {{ this_year }} {{ brand.name }}. {{ brand.city }}.</span>
+    <span class="foot__base-links">
+      <a href="/sitemap.xml">Sitemap</a>
+      <a href="{{ url_for('admin.dashboard') }}">Staff login</a>
+    </span>
+  </div>
+</footer>
+
+<div class="stickybar">
+  <a class="stickybar__a" href="tel:{{ contact.phone|replace(' ','') }}">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 3h2.7l1.4 4-2 1.4a11 11 0 0 0 5 5l1.4-2 4 1.4v2.7c0 1-.8 1.8-1.8 1.7A15 15 0 0 1 4.9 4.8C4.8 3.8 5.6 3 6.6 3Z" fill="currentColor"/></svg>
+    Call
+  </a>
+  {% if contact.whatsapp %}
+  <a class="stickybar__a" href="https://wa.me/{{ contact.whatsapp }}" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.5 15.2L2 22l4.9-1.4A10 10 0 1 0 12 2Zm0 18a8 8 0 0 1-4.1-1.1l-.3-.2-2.9.8.8-2.8-.2-.3A8 8 0 1 1 12 20Zm4.5-5.9c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.5 6.5 0 0 1-3.2-2.8c-.1-.2 0-.4.1-.5l.7-.8c.1-.2.1-.3 0-.5l-.7-1.7c-.2-.4-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.4-.3.3-.9 1-.9 2.3 0 1.4 1 2.7 1.1 2.9.1.2 1.8 2.9 4.5 3.9 2.2.9 2.7.7 3.2.7.5 0 1.6-.7 1.8-1.3.2-.7.2-1.2.2-1.3-.1-.2-.2-.2-.4-.3Z" fill="currentColor"/></svg>
+    WhatsApp
+  </a>
+  {% endif %}
+  <a class="stickybar__a stickybar__a--go" href="/#enquiry">Book<span class="sr"> an appointment</span></a>
+</div>
+
+{# ── phone tab bar ───────────────────────────────────────────────────────────
+   Only visible under 760px, where it replaces the burger menu and the sticky
+   call bar. The centre slot is raised because booking is the one action the
+   practice wants tapped. #}
+{% set p = request.path %}
+<nav class="tabbar" aria-label="Quick navigation">
+  <a class="tabbar__a {{ 'is-on' if p == '/' }}" href="/" {{ 'aria-current=page' | safe if p == '/' }}>
+    <span class="tabbar__i">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1v-9.5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+    </span>
+    Home
+  </a>
+  <a class="tabbar__a {{ 'is-on' if p.startswith('/treatments') }}" href="/treatments">
+    <span class="tabbar__i">
+      <svg viewBox="0 0 24 28" aria-hidden="true"><path d="M12 4c-2.9-1.8-6.7-.9-7.8 2.4C3 9.9 4.4 14 5.6 18.2c.7 2.4 1.2 5.8 2.9 5.8 1.6 0 1.5-3.8 3.5-3.8s1.8 3.8 3.5 3.8c1.7 0 2.2-3.4 2.9-5.8C19.6 14 21 9.9 19.8 6.4 18.7 3.1 14.9 2.2 12 4Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+    </span>
+    Treatments
+  </a>
+  <a class="tabbar__a tabbar__a--go {{ 'is-on' if p == '/contact' }}" href="/contact#enquiry">
+    <span class="tabbar__i">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3m10-3v3M4 9h16M5 6h14a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Zm7 6v5m-2.5-2.5h5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </span>
+    Book
+  </a>
+  <a class="tabbar__a {{ 'is-on' if p.startswith('/emi') }}" href="/emi-and-payment">
+    <span class="tabbar__i">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7Zm0 4h18M8 4h8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M7 15h4m-4 2.5h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </span>
+    EMI
+  </a>
+  <button class="tabbar__a" type="button" data-sheet-open="more-sheet"
+          aria-expanded="false" aria-controls="more-sheet">
+    <span class="tabbar__i">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+    </span>
+    More
+  </button>
+</nav>
+
+<div class="sheet" id="more-sheet" hidden>
+  <div class="sheet__scrim" data-sheet-close></div>
+  <div class="sheet__box" role="dialog" aria-modal="true" aria-label="Menu and contact">
+    <span class="sheet__grab" aria-hidden="true"></span>
+    <div class="sheet__h">
+      <h2>{{ brand.name }}</h2>
+      <button class="appbtn" type="button" data-sheet-close aria-label="Close the menu">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="sheet__b">
+      <p class="sheet__note">
+        <span class="dot {{ 'dot--on' if open_state.open_now else 'dot--off' }}" aria-hidden="true"></span>
+        <strong>{{ open_state.label }}</strong>
+        {% if open_state.detail %}<span>&middot; {{ open_state.detail }}</span>{% endif %}
+      </p>
+
+      {% for item in header_nav %}
+      <a class="sheet__row" href="{{ item.url }}">
+        {{ item.label }}
+        <svg class="sheet__chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"/></svg>
+      </a>
+      {% endfor %}
+      {% if footer_nav2 %}<div class="sheet__label">Popular treatments</div>{% endif %}
+      {% for item in footer_nav2[:4] %}
+      <a class="sheet__row" href="{{ item.url }}">
+        {{ item.label }}
+        <svg class="sheet__chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"/></svg>
+      </a>
+      {% endfor %}
+
+      <div class="sheet__foot">
+        <a class="btn btn--primary btn--block" href="tel:{{ contact.phone|replace(' ','') }}">
+          Call {{ contact.phone_display or contact.phone }}
+        </a>
+        {% if contact.whatsapp %}
+        <a class="btn btn--ghost btn--block" href="https://wa.me/{{ contact.whatsapp }}" target="_blank" rel="noopener">
+          Message on WhatsApp
+        </a>
+        {% endif %}
+        {% if contact.emergency %}
+        <p class="sheet__note">Out of hours <a href="tel:{{ contact.emergency|replace(' ','') }}">{{ contact.emergency }}</a></p>
+        {% endif %}
+        <div class="sheet__social">
+          {% if social.instagram %}<a href="{{ social.instagram }}" target="_blank" rel="noopener">Instagram</a>{% endif %}
+          {% if social.facebook %}<a href="{{ social.facebook }}" target="_blank" rel="noopener">Facebook</a>{% endif %}
+          {% if social.google %}<a href="{{ social.google }}" target="_blank" rel="noopener">Google</a>{% endif %}
+          <a href="{{ url_for('admin.dashboard') }}">Staff login</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="application/ld+json">
+{{ {
+  "@context": "https://schema.org",
+  "@type": "Dentist",
+  "name": brand.name,
+  "description": S('seo.default_description'),
+  "telephone": contact.phone,
+  "email": contact.email,
+  "address": {"@type": "PostalAddress", "streetAddress": contact.address, "addressLocality": brand.city, "addressCountry": "IN"},
+  "url": request.url_root
+} | tojson }}
+</script>
+<script src="{{ url_for('static', filename='js/site.js') }}" defer></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

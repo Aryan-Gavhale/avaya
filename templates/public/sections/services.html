@@ -1,0 +1,66 @@
+{% from "public/_icons.html" import icon, arrow %}
+
+{% macro svc_card(s, show_price, i) %}
+<article class="card rv" style="--i:{{ i }}">
+  <a class="card__link" href="/treatments/{{ s.slug }}" aria-label="{{ s.name }}"></a>
+  {% if s.emi_eligible %}<span class="card__flag">EMI available</span>{% endif %}
+  {% if s.media_id %}
+  <div class="card__media">
+    <img src="{{ media_url(s.media_id, 'medium') }}" alt="{{ media_alt(s.media_id) }}" loading="lazy" width="800" height="500">
+  </div>
+  {% endif %}
+  <div class="card__body">
+    {% if not s.media_id %}<span class="card__icon">{{ icon(s.icon) }}</span>{% endif %}
+    {% if s.category_name %}<span class="card__cat">{{ s.category_name }}</span>{% endif %}
+    <h3 class="card__t">{{ s.name }}</h3>
+    <p class="card__d">{{ s.summary }}</p>
+    <div class="card__meta">
+      {% if show_price and s.price_from %}
+      <span class="card__price">
+        <b>{{ s.price_from|money }}{% if s.price_to and s.price_to != s.price_from %} &ndash; {{ s.price_to|money }}{% endif %}</b>
+        <span>{{ s.sittings or 'per tooth' }}</span>
+      </span>
+      {% else %}
+      <span class="card__price"><b>&nbsp;</b><span>{{ s.sittings or '' }}</span></span>
+      {% endif %}
+      <span class="card__go">{{ arrow() }}</span>
+    </div>
+  </div>
+</article>
+{% endmacro %}
+
+<section class="sect sect--{{ d.tone or 'light' }}" id="{{ row.anchor or 'sec-' ~ row.id }}" data-sec="{{ row.type }}">
+  <div class="shell">
+    {% if row.title or row.eyebrow or row.subtitle %}
+    <div class="head2 rv rv--fade">
+      {% if row.eyebrow %}<span class="kicker">{{ row.eyebrow }}</span>{% endif %}
+      {% if row.title %}<h2 class="h-lg">{{ row.title }}</h2>{% endif %}
+      {% if row.subtitle %}<p class="lede">{{ row.subtitle }}</p>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if x.get('grouped') %}
+      {% for cat, rows in x.grouped.items() %}
+      <div class="svcgroup">
+        <div class="svcgroup__h rv rv--fade">
+          <h3>{{ cat }}</h3>
+          <span>{{ rows|length }} treatment{{ 's' if rows|length != 1 }}</span>
+        </div>
+        <div class="cards">
+          {% for s in rows %}{{ svc_card(s, d.get('show_price', 1), loop.index0) }}{% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="cards">
+        {% for s in x.get('services', []) %}{{ svc_card(s, d.get('show_price', 1), loop.index0) }}{% endfor %}
+      </div>
+    {% endif %}
+
+    {% if d.cta_label %}
+    <div class="cards__foot rv rv--fade">
+      <a class="btn btn--line btn--lg" href="{{ d.cta_url or '/treatments' }}">{{ d.cta_label }}{{ arrow() }}</a>
+    </div>
+    {% endif %}
+  </div>
+</section>

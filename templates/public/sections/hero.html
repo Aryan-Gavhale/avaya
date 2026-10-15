@@ -1,0 +1,59 @@
+{% from "public/_icons.html" import tick, arrow, star, stars, shield %}
+{% set live = x.get('bundle') %}
+<section class="sect hero" id="{{ row.anchor or 'sec-' ~ row.id }}" data-sec="{{ row.type }}">
+  <div class="shell hero__grid">
+    <div class="hero__copy">
+      {% if d.badge %}
+      <span class="hero__badge rv rv--fade">{{ shield() }}{{ d.badge }}</span>
+      {% endif %}
+      {% if row.eyebrow %}<span class="kicker rv rv--fade" style="--i:1">{{ row.eyebrow }}</span>{% endif %}
+      <h1 class="hero__title rv" style="--i:2">{{ row.title }}</h1>
+      {% if row.subtitle %}<p class="lede rv" style="--i:3">{{ row.subtitle }}</p>{% endif %}
+
+      {% if d.points %}
+      <ul class="hero__points rv" style="--i:4">
+        {% for p in d.points %}
+        <li><span class="hero__tick">{{ tick() }}</span>{{ p.text if p is mapping else p }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+      <div class="hero__cta rv" style="--i:5">
+        {% if d.primary_label %}<a class="btn btn--primary btn--lg" href="{{ d.primary_url or '#enquiry' }}">{{ d.primary_label }}{{ arrow() }}</a>{% endif %}
+        {% if d.secondary_label %}<a class="btn btn--line btn--lg" href="{{ d.secondary_url or '/treatments' }}">{{ d.secondary_label }}</a>{% endif %}
+      </div>
+
+      {% if d.rating_note %}
+      <div class="hero__rating rv rv--fade" style="--i:6">
+        <span class="gscore__stars">{{ stars(5) }}</span>
+        <span class="hero__rating-txt">{{ d.rating_note }}</span>
+      </div>
+      {% else %}
+      <div class="hero__rating rv rv--fade" style="--i:6" data-live-rating>
+        <span class="hero__rating-score" data-rating-value>&mdash;</span>
+        <span>
+          <span class="gscore__stars" data-rating-stars>{{ stars(5) }}</span>
+          <span class="hero__rating-txt" data-rating-text>Google rating, loading</span>
+        </span>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="hero__art rv rv--scale" style="--i:2">
+      <figure class="hero__frame hero__frame--tall" data-parallax="0.05">
+        {% if d.media_id %}
+        <img src="{{ media_url(d.media_id, 'medium') }}" alt="{{ media_alt(d.media_id) }}" width="1200" height="1500" fetchpriority="high">
+        {% endif %}
+      </figure>
+      {% if d.secondary_media_id %}
+      <figure class="hero__inset rv rv--scale" style="--i:5">
+        <img src="{{ media_url(d.secondary_media_id, 'thumb') }}" alt="{{ media_alt(d.secondary_media_id) }}" width="480" height="480" loading="lazy">
+      </figure>
+      {% endif %}
+      <div class="hero__chip rv rv--fade" style="--i:6">
+        <b>{{ brand.established or '2011' }}</b>
+        <span>Practising since</span>
+      </div>
+    </div>
+  </div>
+</section>

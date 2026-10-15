@@ -1,0 +1,192 @@
+{% extends "admin/base.html" %}
+{% from "admin/_icons.html" import ico %}
+{% from "admin/_fields.html" import csrf %}
+
+{% macro err(key) %}{% if errors.get(key) %}<span class="ferr" role="alert">{{ errors[key] }}</span>{% endif %}{% endmacro %}
+{% macro bad(key) %}{{ ' is-bad' if errors.get(key) }}{% endmacro %}
+
+{% block crumb %}
+<div class="top__crumb"><a href="{{ url_for('admin.emi_applications') }}">EMI applications</a> &rsaquo; New</div>
+{% endblock %}
+
+{% block actions %}
+<a class="b b--ghost" href="{{ url_for('admin.emi_applications') }}">Cancel</a>
+{% endblock %}
+
+{% block content %}
+{% set v = values %}
+<form class="wiz" method="post" data-guard data-emi-quote data-wiz novalidate>
+  {{ csrf() }}
+
+  <ol class="wiz__steps" style="--n:4" aria-label="Steps">
+    <li class="wiz__step is-on" data-wiz-step><b>Patient</b></li>
+    <li class="wiz__step" data-wiz-step><b>Treatment</b></li>
+    <li class="wiz__step" data-wiz-step><b>Plan</b></li>
+    <li class="wiz__step" data-wiz-step><b>Review</b></li>
+  </ol>
+
+  <section class="panel wiz__pane is-on" data-wiz-pane aria-label="Patient">
+    <div class="panel__b">
+      <h2>Who is the application for?</h2>
+      <p class="wiz__lead">The patient at the desk. Website applications arrive here already filled in.</p>
+      <div class="fg">
+        <div class="fi fi--12">
+          <label for="applicant_name">Full name <em>*</em></label>
+          <input class="in{{ bad('applicant_name') }}" id="applicant_name" name="applicant_name" required
+                 autocomplete="off" value="{{ v.get('applicant_name', '') }}" placeholder="As on their ID">
+          {{ err('applicant_name') }}
+        </div>
+        <div class="fi fi--6">
+          <label for="phone">Phone <em>*</em></label>
+          <input class="in{{ bad('phone') }}" id="phone" name="phone" type="tel" inputmode="tel" required
+                 pattern="[+]?[0-9\s\-]{10,}" value="{{ v.get('phone', '') }}" placeholder="98765 43210">
+          <span class="hint">Payment reminders go to this number.</span>
+          {{ err('phone') }}
+        </div>
+        <div class="fi fi--6">
+          <label for="email">Email</label>
+          <input class="in" id="email" name="email" type="email" value="{{ v.get('email', '') }}"
+                 placeholder="Optional">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel wiz__pane" data-wiz-pane aria-label="Treatment">
+    <div class="panel__b">
+      <h2>What is being financed?</h2>
+      <p class="wiz__lead">Pick the treatment and confirm what it will cost in total.</p>
+      <div class="fg">
+        <div class="fi fi--12">
+          <label for="service_id">Treatment</label>
+          <select class="in" id="service_id" name="service_id">
+            <option value="">Something not on the list</option>
+            {% for s in services %}
+            <option value="{{ s.id }}" data-price="{{ s.price_from or '' }}"
+                    {{ 'selected' if v.get('service_id') == s.id | string }}>{{ s.name }}</option>
+            {% endfor %}
+          </select>
+          <span class="hint">Picking one fills in its starting fee, which you can change.</span>
+        </div>
+        <div class="fi fi--12" data-other-treatment>
+          <label for="treatment_label">Describe the treatment</label>
+          <input class="in" id="treatment_label" name="treatment_label" value="{{ v.get('treatment_label', '') }}"
+                 placeholder="Full-mouth rehabilitation">
+        </div>
+        <div class="fi fi--6">
+          <label for="treatment_amount">Total cost <em>*</em></label>
+          <div class="wrapin">
+            <span class="fix">&#8377;</span>
+            <input class="in{{ bad('treatment_amount') }}" id="treatment_amount" name="treatment_amount"
+                   type="number" min="500" step="1" required inputmode="numeric"
+                   value="{{ v.get('treatment_amount', '') }}" placeholder="60000">
+          </div>
+          {{ err('treatment_amount') }}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel wiz__pane" data-wiz-pane aria-label="Plan">
+    <div class="panel__b">
+      <h2>Choose how they will pay</h2>
+      <p class="wiz__lead">The monthly figure on each card is worked out from the cost you entered.</p>
+      <div class="plans" role="radiogroup" aria-label="Plan">
+        {% for p in plans %}
+        <label class="plancard" data-plan-card>
+          <input type="radio" name="plan_id" value="{{ p.id }}" required
+                 data-tenure="{{ p.tenure_months }}" data-rate="{{ p.interest_rate }}"
+                 data-fee="{{ p.processing_fee_pct }}" data-down="{{ p.downpayment_pct }}"
+                 data-min="{{ p.min_amount or 0 }}" data-max="{{ p.max_amount or 0 }}" data-name="{{ p.name }}"
+                 {{ 'checked' if v.get('plan_id') == p.id | string }}>
+          <span class="plancard__b">
+            <span class="plancard__n">{{ p.name }}</span>
+            <span class="plancard__m">{{ p.tenure_months }} months &middot;
+              {{ p.interest_rate ~ '% a year' if p.interest_rate else 'no interest' }}
+              {%- if p.downpayment_pct %} &middot; {{ p.downpayment_pct | round | int }}% down{% endif %}
+              {%- if p.processing_fee_pct %} &middot; {{ p.processing_fee_pct }}% fee{% endif %}</span>
+            <span class="plancard__q" data-plan-q>&mdash;</span>
+          </span>
+        </label>
+        {% else %}
+        <div class="note note--warn">No plan is active. Switch one on under EMI plans first.</div>
+        {% endfor %}
+      </div>
+      {{ err('plan_id') }}
+      <div class="fg" style="margin-top:18px">
+        <div class="fi fi--6">
+          <label for="start_date">First instalment</label>
+          <input class="in" id="start_date" name="start_date" type="date" required
+                 value="{{ v.get('start_date', '') }}">
+          <span class="hint">Every instalment falls on this day of the month.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel wiz__pane" data-wiz-pane aria-label="Review">
+    <div class="panel__b">
+      <h2>Check and file</h2>
+      <p class="wiz__lead">Nothing is committed until you file it. Use Back to change anything.</p>
+      <dl class="review">
+        <dt>Patient</dt><dd data-rv="applicant_name">&mdash;</dd>
+        <dt>Phone</dt><dd data-rv="phone">&mdash;</dd>
+        <dt>Treatment</dt><dd data-rv="treatment">&mdash;</dd>
+        <dt>Total cost</dt><dd data-emi-sum="amount">&mdash;</dd>
+        <dt>Plan</dt><dd data-emi-sum="plan">&mdash;</dd>
+        <dt>Paid up front</dt><dd data-emi-sum="down">&mdash;</dd>
+        <dt>Processing fee</dt><dd data-emi-sum="fee">&mdash;</dd>
+        <dt>Monthly instalment</dt><dd class="is-big" data-emi-sum="monthly">&mdash;</dd>
+        <dt>First instalment</dt><dd data-rv="start_date">&mdash;</dd>
+        <dt>Total the patient pays</dt><dd data-emi-sum="total">&mdash;</dd>
+      </dl>
+
+      <h3 class="wiz__sub">How should it be filed?</h3>
+      {% set st = v.get('status', 'under_review') %}
+      <div class="choice">
+        <label><input type="radio" name="status" value="under_review" {{ 'checked' if st != 'approved' or not can('emi_admin') }}>
+          <div><b>File for review</b><span>A manager checks the paperwork and approves it. No schedule yet.</span></div></label>
+        {% if can('emi_admin') %}
+        <label><input type="radio" name="status" value="approved" {{ 'checked' if st == 'approved' }}>
+          <div><b>Approve now</b><span>KYC is done. The instalment schedule is generated straight away.</span></div></label>
+        {% endif %}
+      </div>
+      {{ err('status') }}
+
+      <div class="fi" style="margin-top:16px">
+        <label for="notes">Notes</label>
+        <textarea class="in" id="notes" name="notes" rows="3"
+                  placeholder="Aadhaar and PAN seen. Guarantor is the patient's son.">{{ v.get('notes', '') }}</textarea>
+      </div>
+    </div>
+  </section>
+
+  <div class="wiz__nav">
+    <button class="b b--ghost" type="button" data-wiz-back>{{ ico('back') }} Back</button>
+    <span class="wiz__why" data-wiz-why aria-live="polite"></span>
+    <div class="right">
+      <button class="b b--go" type="button" data-wiz-next>Continue {{ ico('arrow') }}</button>
+      <button class="b b--go" type="submit" data-wiz-submit>{{ ico('wallet') }} File the application</button>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce() }}">
+  /* A listed treatment suggests its starting fee; "not on the list" asks for a description. */
+  const svc = document.getElementById('service_id');
+  const amount = document.getElementById('treatment_amount');
+  const other = document.querySelector('[data-other-treatment]');
+  const syncOther = () => { other.hidden = !!svc.value; };
+  svc.addEventListener('change', () => {
+    syncOther();
+    const price = svc.selectedOptions[0]?.dataset.price;
+    if (price && !amount.value) {
+      amount.value = Math.round(parseFloat(price));
+      amount.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  });
+  syncOther();
+</script>
+{% endblock %}

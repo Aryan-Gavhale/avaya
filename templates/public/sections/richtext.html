@@ -1,0 +1,14 @@
+<section class="sect sect--{{ d.tone or 'light' }} {{ 'sect--tight' if d.width == 'narrow' }}" id="{{ row.anchor or 'sec-' ~ row.id }}" data-sec="{{ row.type }}">
+  <div class="shell">
+    <div class="{{ 'prose--narrow' if d.width == 'narrow' else '' }}">
+      {% if row.eyebrow %}<span class="kicker rv rv--fade">{{ row.eyebrow }}</span>{% endif %}
+      {% if row.title %}<h1 class="h-xl rv" style="--i:1">{{ row.title }}</h1>{% endif %}
+      {% if row.subtitle %}<p class="lede rv" style="--i:2">{{ row.subtitle }}</p>{% endif %}
+      {% if row.body %}
+      <div class="prose rv" style="--i:3; margin-top:26px">
+        {% for para in row.body|paragraphs %}<p>{{ para }}</p>{% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</section>

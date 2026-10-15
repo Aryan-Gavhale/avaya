@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="{{ admin_theme.canvas }}">
+<title>Sign in &middot; {{ brand.name }} admin</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+{% include "admin/_theme.html" %}
+<script nonce="{{ csp_nonce() }}">try { sessionStorage.removeItem('admin.side.in'); } catch (e) { /* private mode */ }</script>
+</head>
+<body>
+{% from "admin/_icons.html" import ico %}
+<main class="login">
+  <form class="login__box" method="post">
+    <span class="login__mark">{{ ico('tooth') }}</span>
+    <h1>{{ brand.name }}</h1>
+    <p>Practice admin. Content, enquiries and the EMI ledger.</p>
+
+    {% if error %}<div class="login__err">{{ error }}</div>{% endif %}
+    {% for category, message in get_flashed_messages(with_categories=true) %}
+      <div class="{{ 'login__err' if category == 'error' else 'note note--good' }}" style="margin-bottom:16px">{{ message }}</div>
+    {% endfor %}
+
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="next" value="{{ next }}">
+
+    <div class="fi">
+      <label for="email">Email</label>
+      <input class="in" id="email" name="email" type="email" required autofocus autocomplete="username">
+    </div>
+    <div class="fi">
+      <label for="password">Password</label>
+      <input class="in" id="password" name="password" type="password" required autocomplete="current-password">
+    </div>
+
+    <button class="b b--go" type="submit" style="width:100%; padding:11px">Sign in</button>
+
+    <div class="login__foot">
+      Eight wrong attempts from one address locks it out for fifteen minutes.
+      <br>Lost the password? Run <code>python app.py user &lt;email&gt; &lt;name&gt; &lt;password&gt; owner</code> on the server.
+    </div>
+  </form>
+</main>
+</body>
+</html>

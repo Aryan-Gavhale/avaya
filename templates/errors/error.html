@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ code }} &middot; {{ title }}</title>
+<style>
+body { margin:0; min-height:100vh; display:grid; place-items:center; color:#1D1D1F; padding:32px;
+       font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+       background:radial-gradient(900px 500px at 20% -10%, #E3FBEC 0, transparent 60%), #F5F5F7; }
+.box { max-width:540px; text-align:center; }
+.code { font-size:88px; line-height:1; font-weight:200; letter-spacing:-.04em; color:#34D38C; }
+h1 { font-size:26px; margin:10px 0 12px; font-weight:600; letter-spacing:-.02em; }
+p { color:#6E6E73; line-height:1.6; margin:0 0 26px; }
+a { display:inline-block; background:#0E8F5B; color:#fff; text-decoration:none; margin:0 6px;
+    padding:11px 22px; border-radius:999px; font-weight:600; font-size:15px; }
+a.alt { background:#fff; color:#1D1D1F; border:1px solid rgba(0,0,0,.1); }
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="code">{{ code }}</div>
+  <h1>{{ title }}</h1>
+  {% if message %}<p>{{ message }}</p>{% endif %}
+  <a href="{{ request.referrer or '/' }}">Go back</a>
+  <a class="alt" href="/admin">Admin panel</a>
+</div>
+</body>
+</html>

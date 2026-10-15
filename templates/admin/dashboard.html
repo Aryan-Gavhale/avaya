@@ -1,0 +1,186 @@
+{% extends "admin/base.html" %}
+{% from "admin/_icons.html" import ico %}
+{% from "admin/_fields.html" import badge %}
+
+{% block crumb %}<div class="top__crumb">{{ today.strftime('%A %d %B %Y') }}</div>{% endblock %}
+
+{% block actions %}
+{% if can('content') %}<a class="b" href="{{ url_for('admin.pages_list') }}">{{ ico('layout') }} Edit the site</a>{% endif %}
+<a class="b b--go" href="{{ url_for('admin.enquiries_list') }}">{{ ico('inbox') }} Enquiries</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="stats">
+  <div class="sc">
+    <span class="sc__l">Enquiries today</span>
+    <span class="sc__n">{{ d.enq_today }}</span>
+    <span class="sc__d">{{ d.enq_week }} in the last seven days</span>
+  </div>
+  <div class="sc {{ 'sc--bad' if d.enq_new }}">
+    <span class="sc__l">Waiting to be called</span>
+    <span class="sc__n">{{ d.enq_new }}</span>
+    <span class="sc__d"><a href="{{ url_for('admin.enquiries_list', status='new') }}">Open the list</a></span>
+  </div>
+  {% if can('emi') %}
+  <div class="sc">
+    <span class="sc__l">EMI outstanding</span>
+    <span class="sc__n">{{ d.emi_outstanding | money }}</span>
+    <span class="sc__d">{{ d.collected_month | money }} collected this month</span>
+  </div>
+  <div class="sc {{ 'sc--bad' if d.emi_overdue_n }}">
+    <span class="sc__l">Overdue</span>
+    <span class="sc__n">{{ d.emi_overdue | money }}</span>
+    <span class="sc__d">
+      {% if d.emi_overdue_n %}
+      {{ d.emi_overdue_n }} instalment{{ 's' if d.emi_overdue_n != 1 }} past the due date &middot;
+      <a href="{{ url_for('admin.emi_ledger', view='overdue') }}">Chase them</a>
+      {% else %}Nothing past its due date{% endif %}
+    </span>
+  </div>
+  {% endif %}
+</div>
+
+<div class="grid2">
+  <div class="panel">
+    <div class="panel__h">
+      <div>
+        <h2>Latest enquiries</h2>
+        <p>Newest first, with anything urgent at the top of the full list.</p>
+      </div>
+      <div class="right"><a class="b b--sm" href="{{ url_for('admin.enquiries_list') }}">See all {{ d.enq_total }}</a></div>
+    </div>
+    <div class="panel__b panel__b--flush">
+      {% if d.latest %}
+      <div class="tw">
+        <table class="t t--mini">
+          <tbody>
+            {% for e in d.latest %}
+            <tr>
+              <td>
+                <a class="rowlink" href="{{ url_for('admin.enquiry_detail', row_id=e.id) }}">{{ e.name }}</a>
+                <span class="t__sub">{{ e.service_name or 'Treatment not stated' }}{% if e.branch_name %} &middot; {{ e.branch_name }}{% endif %}</span>
+              </td>
+              <td>{{ badge(e.status, 'info' if e.status == 'new' else ('good' if e.status in ('booked','treated') else '')) }}</td>
+              <td class="num t__sub">{{ e.created_at | ago }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty">
+        <h3>No enquiries yet</h3>
+        <p>Submissions from the website form land here, with the source page and any UTM tags.</p>
+        <a class="b" href="/#enquiry" target="_blank" rel="noopener">Try the public form</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel__h"><div><h2>Enquiry pipeline</h2><p>Every enquiry that is not spam, by status.</p></div></div>
+    <div class="panel__b">
+      {% set total = d.by_status | sum(attribute='n') or 1 %}
+      <div class="bars">
+        {% for s in d.by_status %}
+        <div class="bar">
+          <span>{{ s.status }}</span>
+          <span class="bar__t"><i class="bar__f" style="width:{{ (s.n / total * 100) | round(1) }}%"></i></span>
+          <span class="num">{{ s.n }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% if not d.by_status %}<p class="hint">Nothing to chart yet.</p>{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="grid2">
+  {% if can('emi') %}
+  <div class="panel">
+    <div class="panel__h">
+      <div><h2>Instalments due in the next 30 days</h2></div>
+      <div class="right"><a class="b b--sm" href="{{ url_for('admin.emi_ledger') }}">Ledger</a></div>
+    </div>
+    <div class="panel__b panel__b--flush">
+      {% if d.due_30 %}
+      <div class="tw">
+        <table class="t t--mini">
+          <thead><tr><th>Patient</th><th>Instalment</th><th>Due</th><th class="num">Amount</th></tr></thead>
+          <tbody>
+            {% for i in d.due_30 %}
+            <tr>
+              <td><a class="rowlink" href="{{ url_for('admin.emi_application_detail', app_id=i.application_id) }}">{{ i.applicant_name }}</a>
+                  <span class="t__sub">{{ i.ref }}</span></td>
+              <td class="nophone">#{{ i.seq }}</td>
+              <td><span class="onlyphone">#{{ i.seq }} &middot; </span>{{ i.due_date | date_fmt }}
+                  {% if i.due_date < today.isoformat() %}{{ badge('overdue', 'bad') }}{% endif %}</td>
+              <td class="num">{{ i.amount | money }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty"><h3>Nothing due</h3><p>Approve an application and its schedule appears here.</p></div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="panel">
+    <div class="panel__h"><div><h2>The site right now</h2></div>
+      <div class="right"><a class="b b--sm" href="/" target="_blank" rel="noopener">{{ ico('external') }} Open</a></div>
+    </div>
+    <div class="panel__b">
+      <dl class="kv">
+        <dt>Pages</dt><dd>{{ d.content.pages }} published, {{ d.content.sections }} live sections
+          {% if d.content.drafts %}&middot; {{ badge(d.content.drafts ~ ' draft', 'warn') }}{% endif %}</dd>
+        <dt>Treatments</dt><dd>{{ d.content.services }} published</dd>
+        <dt>Media</dt><dd>{{ d.content.media }} images</dd>
+        <dt>Google reviews</dt>
+        <dd>
+          {% if d.reviews.has_key and d.reviews.place_id %}
+            {% if d.reviews.rating %}
+            {{ d.reviews.rating }} from {{ d.reviews.total }} reviews
+            {{ badge('cache ' ~ ('fresh' if d.reviews.cache_fresh else 'stale'), 'good' if d.reviews.cache_fresh else 'warn') }}
+            {% else %}
+            Connected, not fetched yet
+            {% endif %}
+          {% else %}
+            {{ badge('not connected', 'warn') }} using {{ d.reviews.manual_count }} curated quotes
+          {% endif %}
+        </dd>
+      </dl>
+      {% if can('reviews') and not (d.reviews.has_key and d.reviews.place_id) %}
+      <p style="margin:14px 0 0"><a class="b b--sm" href="{{ url_for('admin.reviews_home') }}">{{ ico('star') }} Connect Google reviews</a></p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% if can('audit') %}
+<div class="panel">
+  <div class="panel__h"><div><h2>Recent activity</h2><p>Every change, who made it and when.</p></div>
+    <div class="right"><a class="b b--sm" href="{{ url_for('admin.audit_list') }}">Full log</a></div>
+  </div>
+  <div class="panel__b">
+    <div class="feed">
+      {% for a in d.activity %}
+      <div class="feed__i">
+        <span class="feed__d">{{ a.user_email.split('@')[0][:2] | upper }}</span>
+        <span class="feed__t">
+          <b>{{ a.action }}</b> {{ a.entity }}{% if a.label %} &mdash; {{ a.label | shorten(60) }}{% endif %}
+          <span>by {{ a.user_email }}</span>
+        </span>
+        <span class="feed__w">{{ a.created_at | ago }}</span>
+      </div>
+      {% endfor %}
+      {% if not d.activity %}<p class="hint">Nothing logged yet.</p>{% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

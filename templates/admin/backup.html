@@ -1,0 +1,98 @@
+{% extends "admin/base.html" %}
+{% from "admin/_icons.html" import ico %}
+{% from "admin/_fields.html" import csrf, badge %}
+
+{% block actions %}
+<form method="post" action="{{ url_for('admin.backup_create') }}">
+  {{ csrf() }}
+  <button class="b b--go" type="submit">{{ ico('database') }} Back up now</button>
+</form>
+{% endblock %}
+
+{% block content %}
+
+<div class="stats">
+  <div class="sc">
+    <span class="sc__l">Database</span>
+    <span class="sc__n">{{ (db_size / 1048576) | round(2) }} MB</span>
+    <span class="sc__d">Every page, enquiry, application and setting</span>
+  </div>
+  <div class="sc">
+    <span class="sc__l">Uploads</span>
+    <span class="sc__n">{{ (upload_size / 1048576) | round(2) }} MB</span>
+    <span class="sc__d">{{ media_count }} image record{{ 's' if media_count != 1 }}</span>
+  </div>
+  <div class="sc">
+    <span class="sc__l">Kept here</span>
+    <span class="sc__n">{{ files | length }}</span>
+    <span class="sc__d">Newest 20 archives shown</span>
+  </div>
+</div>
+
+<div class="note note--warn" style="margin-bottom:18px">
+  A backup is a single zip holding a consistent copy of the database plus every uploaded file.
+  Download it somewhere else &mdash; a copy sitting on the same server is not a backup.
+</div>
+
+<div class="panel">
+  <div class="panel__h"><div><h2>Archives on this server</h2></div></div>
+  <div class="panel__b panel__b--flush">
+    {% if files %}
+    <div class="tw">
+      <table class="t">
+        <thead><tr><th>File</th><th>Created</th><th class="num">Size</th><th class="act"></th></tr></thead>
+        <tbody>
+          {% for f in files %}
+          <tr>
+            <td><code>{{ f.name }}</code></td>
+            <td data-label="Created">{{ f.when.strftime('%d %b %Y, %H:%M') }}</td>
+            <td class="num" data-label="Size">{{ (f.size / 1048576) | round(2) }} MB</td>
+            <td class="act">
+              <a class="b b--sm" href="{{ url_for('admin.backup_download', name=f.name) }}">{{ ico('download') }} Download</a>
+              <form method="post" style="display:inline"
+                    action="{{ url_for('admin.backup_delete', name=f.name) }}"
+                    data-confirm="Delete {{ f.name }} from the server?">
+                {{ csrf() }}
+                <button class="b b--sm b--bad" type="submit">Delete</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty">
+      <h3>No archives yet</h3>
+      <p>Take one now, then download it. Doing this before any large content change is a good habit.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel__h">
+    <div><h2>Restore</h2>
+      <p>Replaces the current database with the one inside the archive and copies its uploads back.</p></div>
+  </div>
+  <form method="post" action="{{ url_for('admin.backup_restore') }}" enctype="multipart/form-data"
+        data-confirm="Restore from this archive? The current database is replaced. A copy of it is kept as clinic.db.pre-restore.">
+    {{ csrf() }}
+    <div class="panel__b">
+      <div class="note note--warn">
+        <p><b>This overwrites everything.</b> Content, enquiries, EMI applications and payments are all
+          replaced by whatever is in the archive.</p>
+        <p>The database being replaced is saved alongside as <code>clinic.db.pre-restore</code>, and you
+          will be signed out afterwards.</p>
+      </div>
+      <div class="fi" style="margin-top:14px">
+        <label for="archive">Backup archive</label>
+        <input class="in" id="archive" name="archive" type="file" accept=".zip" required>
+      </div>
+    </div>
+    <div class="panel__f">
+      <button class="b b--bad" type="submit">{{ ico('upload') }} Restore from this archive</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,627 @@
+/* ==========================================================================
+   Admin panel — phone app layer
+   Loaded with media="(max-width: 760px)". Above that width the desktop shell
+   with its sidebar is untouched.
+
+   On a phone the sidebar, the burger and the horizontal tables are all wrong:
+   a 252px drawer eats the screen and a seven-column table cannot be read. So
+   the shell becomes an app — bottom tabs, a sheet for the rest of the
+   navigation, list rows as cards, and the save bar docked above the tabs.
+   ========================================================================== */
+
+:root {
+  /* the real rendered height of .atabs — the save and bulk bars stack straight
+     on top of it, so a wrong number here shows as a strip of scrolling page */
+  --atab-h: 57px;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --a-ease: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+* { -webkit-tap-highlight-color: transparent; }
+
+body { font-size: 14.5px; }
+
+/* ── shell: sidebar out, tabs in ────────────────────────────────────────── */
+.shell { grid-template-columns: minmax(0, 1fr); }
+.side, .scrim, .burger2 { display: none !important; }
+
+.wrap {
+  padding: 12px 12px calc(var(--atab-h) + var(--safe-b) + 96px);
+}
+
+/* ── app bar ────────────────────────────────────────────────────────────── */
+.top {
+  min-height: 54px;
+  padding: 6px 12px 0;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  z-index: 20;
+}
+.top > div:not(.top__actions) { min-width: 0; flex: 1; }
+.top__t {
+  font-size: 16.5px;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.top__crumb { font-size: 11.5px; }
+/* the crumb stays small type, but its link takes a thumb-sized hit area */
+.top__crumb a { position: relative; }
+.top__crumb a::after {
+  content: "";
+  position: absolute;
+  inset-block: -10px;
+  inset-inline: -8px;
+}
+
+.backb {
+  display: grid; place-items: center;
+  width: 36px; height: 36px;
+  flex: none;
+  margin-inline-start: -6px;
+  border: 0;
+  background: none;
+  color: var(--a-ink);
+  cursor: pointer;
+  border-radius: 10px;
+}
+.backb svg { width: 20px; }
+.backb:active { background: var(--a-mint); }
+
+/* the action row drops under the title: search across the full width, then
+   whatever chips the screen carries */
+.top__actions {
+  width: 100%;
+  order: 3;
+  margin: 4px 0 9px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  overflow: visible;
+}
+.top__actions .search { flex: 1 1 100%; }
+.top__actions .search .in { min-width: 0; width: 100%; min-height: 42px; font-size: 16px; }
+.top__actions > .b,
+.top__actions form > .b { border-radius: 999px; min-height: 38px; }
+
+/* the primary "new thing" action becomes a floating pill, the way a phone app
+   puts compose in the bottom corner */
+[data-fab] {
+  position: fixed;
+  inset-block-end: calc(var(--atab-h) + var(--safe-b) + 14px);
+  inset-inline-end: 14px;
+  z-index: 30;
+  min-height: 46px;
+  padding: 0 18px;
+  border-radius: 999px;
+  box-shadow: 0 8px 22px -8px color-mix(in srgb, var(--a-brand) 45%, transparent);
+  font-size: 14px;
+}
+[data-fab]:active { transform: scale(0.96); }
+
+/* ── inputs and buttons sized for thumbs ────────────────────────────────── */
+.in { min-height: 44px; font-size: 16px; border-radius: 10px; }
+textarea.in { min-height: 110px; }
+select.in { background-position: right 12px center; }
+.b { min-height: 40px; padding: 9px 14px; }
+.b--sm { min-height: 34px; padding: 7px 12px; }
+.b--icon { min-height: 38px; width: 38px; padding: 6px; }
+.b--icon svg { width: 17px; }
+.b:active { background: var(--a-mint); }
+
+.fg { gap: 14px; }
+.fi--1, .fi--2, .fi--3, .fi--4, .fi--5, .fi--6,
+.fi--7, .fi--8, .fi--9, .fi--10, .fi--11 { grid-column: span 12; }
+.grid2, .grid3, .typegrid { grid-template-columns: minmax(0, 1fr); }
+.split-main { grid-template-columns: minmax(0, 1fr); }
+.sticky { position: static; }
+.stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.sc { padding: 13px 14px; }
+.sc__n { font-size: 23px; }
+.sc__l { font-size: 10.5px; }
+.mgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.kv { grid-template-columns: 104px 1fr; gap: 7px 12px; }
+.bar { grid-template-columns: 104px 1fr 42px; gap: 10px; font-size: 12.5px; }
+.drop { padding: 20px 14px; }
+.receipt { padding: 18px; }
+.panel { border-radius: 12px; }
+.panel__h { padding: 13px 14px; }
+.panel__b { padding: 14px; }
+.panel__f { padding: 12px 14px; }
+
+/* ── filter and tab strips scroll sideways ──────────────────────────────── */
+.tabs {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  margin-inline: -14px;
+  padding-inline: 14px;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tab { flex: none; scroll-snap-align: start; padding: 8px 13px; }
+
+.filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.filters .search { grid-column: 1 / -1; }
+.filters .in { min-width: 0; }
+/* the selects already submit on change, so Apply is one tap of nothing */
+.filters > button[type=submit] { display: none; }
+.filters > a.b { grid-column: 1 / -1; }
+
+/* ── list tables become cards ───────────────────────────────────────────
+   Each row is one tappable card: the unlabelled first cell is the heading,
+   every other cell prints its column name from data-label, and the action
+   cell sits in a footer. Tables without data-label attributes keep scrolling
+   sideways rather than collapsing into an unreadable stack. */
+.tw { overflow-x: auto; }
+
+/* The dashboard's short tables are a glance, not a record, so they read as a
+   two-line list: title and sub on the left, the closing figure on the right,
+   anything in between on its own quiet line underneath. */
+table.t--mini, table.t--mini tbody, table.t--mini tr, table.t--mini td { display: block; }
+table.t--mini thead { display: none; }
+table.t--mini tr {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 12px;
+  row-gap: 2px;
+  padding: 11px 14px;
+  border-block-start: 1px solid var(--a-line);
+}
+table.t--mini tr:first-child { border-block-start: 0; }
+table.t--mini td { padding: 0; border: 0; text-align: start; }
+table.t--mini td.nophone { display: none; }
+table.t--mini td:first-child { grid-column: 1; grid-row: 1; }
+table.t--mini td:last-child { grid-column: 2; grid-row: 1; justify-self: end; }
+table.t--mini td.num:last-child { font-weight: 600; }
+table.t--mini td:not(:first-child):not(:last-child) {
+  grid-column: 1 / -1;
+  font-size: 12.5px;
+  color: var(--a-mut);
+}
+table.t--mini .t__sub { font-size: 12px; }
+
+table.t:has(td[data-label]) { display: block; }
+table.t:has(td[data-label]) thead { display: none; }
+table.t:has(td[data-label]) tbody { display: grid; gap: 9px; padding: 12px; }
+table.t:has(td[data-label]) tr {
+  display: block;
+  position: relative;
+  border: 1px solid var(--a-line);
+  border-radius: 12px;
+  padding: 11px 13px;
+  background: #fff;
+}
+table.t:has(td[data-label]) tbody tr:hover { background: #fff; }
+table.t:has(td[data-label]) tr:active { background: #FAFCFC; }
+table.t:has(td[data-label]) tr.is-draft { background: #FCFCFB; border-style: dashed; }
+/* A cell is a label beside its value. Flex rather than grid, because a cell
+   often holds a bare value plus a .t__sub second line, and only flex lets the
+   sub-line take a row of its own without a wrapper element. */
+table.t:has(td[data-label]) td {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 10px;
+  padding: 4px 0;
+  border: 0;
+}
+table.t:has(td[data-label]) td[data-label]::before {
+  content: attr(data-label);
+  flex: none;
+  width: 88px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--a-mut);
+}
+/* a .t__sub is a second line and lines up under the value, not under the label.
+   A .hint inside a cell is part of the value itself, so it stays inline. */
+table.t:has(td[data-label]) td[data-label] .t__sub {
+  flex: 1 0 100%;
+  padding-inline-start: 98px;
+}
+/* the heading cell: no label, full width, bigger */
+table.t:has(td[data-label]) td:not([data-label]) {
+  display: block;
+  padding-block-end: 7px;
+  padding-inline-end: 34px;              /* clear of the select checkbox */
+  font-size: 15px;
+}
+table.t:has(td[data-label]) td:not([data-label]) .rowlink { font-size: 15px; }
+table.t:has(td[data-label]) .t__sub { margin-block-start: 2px; }
+table.t:has(td[data-label]) td.num { text-align: left; }
+
+/* actions along the bottom of the card */
+table.t:has(td[data-label]) td.act {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block-start: 8px;
+  padding-block-start: 10px;
+  border-block-start: 1px solid var(--a-line-2);
+  text-align: left;
+}
+/* a row with no actions should not leave a rule and a gap behind */
+table.t:has(td[data-label]) td.act:not(:has(*)) { display: none; }
+table.t:has(td[data-label]) td.act .b { flex: 1; min-width: 88px; }
+table.t:has(td[data-label]) td.act form { display: flex; flex: 1; }
+table.t:has(td[data-label]) td.act form .b { width: 100%; }
+
+/* a bulk-select checkbox belongs in the corner, not in a column */
+table.t:has(td[data-label]) td:has(> input[type=checkbox]) {
+  position: absolute;
+  inset-block-start: 8px;
+  inset-inline-end: 8px;
+  display: block;
+  padding: 6px;
+}
+table.t:has(td[data-label]) td input[type=checkbox] { width: 20px; height: 20px; }
+
+/* thumbnails sit beside the heading */
+table.t:has(td[data-label]) td.w-thumb {
+  position: absolute;
+  inset-block-start: 10px;
+  inset-inline-end: 11px;
+  display: block;
+  width: auto;
+  padding: 0;
+}
+table.t:has(td[data-label]) td.w-thumb + td { padding-inline-end: 58px; }
+table.t:has(td[data-label]) .t__thumb { width: 46px; height: 46px; }
+
+/* Drag-to-reorder does not exist on a touch screen, so the handle cell shows
+   the two move buttons admin.js adds, parked in the card's top corner. */
+table.t:has(td[data-label]) td.drag {
+  position: absolute;
+  inset-block-start: 8px;
+  inset-inline-end: 8px;
+  display: flex;
+  gap: 6px;
+  width: auto;
+  padding: 0;
+}
+table.t:has(td[data-label]) td.drag ~ td:not([data-label]) { padding-inline-end: 92px; }
+table.t:has(td[data-label]) td.drag ~ td.w-thumb { inset-block-start: 50px; }
+table.t:has(td[data-label]) td.drag > svg { display: none; }
+/* A photograph is the point of the row, so its card leads with the image at
+   full width, caption underneath, and the move buttons floating on the picture. */
+table.t--thumbs:has(td[data-label]) tr { padding: 0; overflow: hidden; }
+/* written against the reorder-card rules above, which pad every cell after the
+   handle to keep clear of the move buttons — here the image runs under them */
+table.t--thumbs:has(td[data-label]) td.w-thumb,
+table.t--thumbs:has(td[data-label]) td.drag ~ td.w-thumb {
+  position: static;
+  display: block;
+  width: auto;
+  padding: 0;
+}
+table.t--thumbs:has(td[data-label]) .t__thumb {
+  width: 100%;
+  height: 148px;
+  border-radius: 0;
+  object-fit: cover;
+  display: block;
+}
+/* the image is flush to the card edge; every other cell keeps the inset */
+table.t--thumbs:has(td[data-label]) td:not(.w-thumb):not(.drag),
+table.t--thumbs:has(td[data-label]) td.drag ~ td:not([data-label]):not(.w-thumb) {
+  padding-inline: 13px;
+}
+table.t--thumbs:has(td[data-label]) td.w-thumb + td { padding-block-start: 11px; }
+table.t--thumbs:has(td[data-label]) td.act { margin: 0; padding: 10px 13px 12px; }
+/* the caption field and its Save button share the width */
+table.t--thumbs:has(td[data-label]) td form { flex: 1; gap: 8px; }
+table.t--thumbs:has(td[data-label]) td form .in { min-width: 0; flex: 1; }
+table.t--thumbs:has(td[data-label]) td.drag .movebtn {
+  background: color-mix(in srgb, #fff 88%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-color: color-mix(in srgb, var(--a-ink) 12%, transparent);
+  color: var(--a-ink);
+}
+
+.movebtn {
+  display: grid; place-items: center;
+  width: 38px; height: 34px;
+  border: 1px solid var(--a-line);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--a-mut);
+  cursor: pointer;
+}
+.movebtn svg { width: 15px; }
+.movebtn:active { background: var(--a-mint); }
+.movebtn[disabled] { opacity: 0.4; }
+
+.onlyphone { display: inline; }
+.nophone { display: none; }
+
+.pager { gap: 4px; padding: 12px; flex-wrap: wrap; }
+.pager a, .pager span { min-width: 38px; min-height: 36px; display: grid; place-items: center; }
+
+/* ── the save bar docks above the tabs ──────────────────────────────────── */
+.savebar {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: calc(var(--atab-h) + var(--safe-b));
+  z-index: 40;
+  margin: 0;
+  border: 0;
+  border-block-start: 1px solid var(--a-line);
+  border-radius: 0;
+  padding: 10px 12px;
+  gap: 8px;
+  box-shadow: 0 -10px 24px -20px rgba(20, 33, 31, 0.6);
+}
+.savebar__note { display: none; }
+.savebar .right { margin-inline-start: 0; flex: 1; gap: 8px; }
+.savebar .right .b { flex: 1; }
+.savebar > .b--go, .savebar > button.b { flex: 1; }
+
+/* the bulk bar behaves the same way */
+[data-bulk-bar] {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: calc(var(--atab-h) + var(--safe-b));
+  z-index: 40;
+  border-radius: 0;
+  border-block-start: 1px solid var(--a-line);
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  box-shadow: 0 -10px 24px -20px rgba(20, 33, 31, 0.6);
+}
+[data-bulk-bar] b { grid-column: 1 / -1; font-size: 12.5px; }
+[data-bulk-bar] .in { max-width: none !important; }
+[data-bulk-bar] .b { grid-column: 1 / -1; }
+[data-bulk-bar] .hint { display: none; }
+
+/* ── bottom tab bar ─────────────────────────────────────────────────────── */
+.atabs {
+  position: fixed;
+  inset-block-end: 0;
+  inset-inline: 0;
+  z-index: 50;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 2px;
+  padding: 5px 4px calc(5px + var(--safe-b));
+  background: color-mix(in srgb, #fff 90%, transparent);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  border-block-start: 1px solid var(--a-line);
+}
+.atabs__a {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  padding: 5px 2px;
+  border: 0;
+  background: none;
+  color: var(--a-mut);
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.1;
+  text-align: center;
+  border-radius: 11px;
+  cursor: pointer;
+}
+.atabs__a:hover { text-decoration: none; }
+.atabs__a svg { width: 21px; height: 21px; opacity: 0.9; }
+.atabs__a:active { background: var(--a-mint); }
+.atabs__a.is-on { color: var(--a-brand); }
+.atabs__a.is-on svg { opacity: 1; }
+.atabs__i { position: relative; display: grid; place-items: center; }
+.atabs__a.is-on .atabs__i::after {
+  content: "";
+  position: absolute;
+  inset-block-end: -3px;
+  inset-inline-start: 50%;
+  translate: -50% 0;
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--a-brand);
+}
+.atabs__n {
+  position: absolute;
+  inset-block-start: -4px;
+  inset-inline-start: calc(50% + 5px);
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--a-bad);
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+/* ── the "More" sheet ───────────────────────────────────────────────────── */
+.asheet { display: block; position: fixed; inset: 0; z-index: 70; }
+.asheet__scrim {
+  position: absolute; inset: 0;
+  background: rgba(0, 0, 0, 0.22);
+  opacity: 0;
+  transition: opacity 0.24s var(--a-ease);
+}
+.asheet__box {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline: 0;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--a-panel);
+  border-start-start-radius: 18px;
+  border-start-end-radius: 18px;
+  padding-block-end: var(--safe-b);
+  transform: translateY(100%);
+  transition: transform 0.3s var(--a-ease);
+}
+.asheet.is-open .asheet__scrim { opacity: 1; }
+.asheet.is-open .asheet__box { transform: none; }
+
+.asheet__grab { width: 38px; height: 4px; margin: 9px auto 4px; border-radius: 999px; background: #D7DEE0; flex: none; }
+.asheet__h {
+  flex: none;
+  display: flex; align-items: center; gap: 12px;
+  padding: 6px 14px 12px;
+  border-block-end: 1px solid var(--a-line-2);
+}
+.asheet__av {
+  width: 38px; height: 38px; border-radius: 50%; flex: none;
+  background: var(--a-brand-soft); color: var(--a-brand);
+  display: grid; place-items: center; font-size: 13px; font-weight: 700;
+}
+.asheet__who { min-width: 0; }
+.asheet__who b { display: block; font-size: 14.5px; }
+.asheet__who span { font-size: 12px; color: var(--a-mut); }
+.asheet__x { margin-inline-start: auto; }
+.asheet__b { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 6px 14px 16px; }
+
+.asheet__label {
+  margin-block: 14px 4px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--a-mut);
+}
+.asheet__a {
+  display: flex; align-items: center; gap: 12px;
+  min-height: 48px;
+  padding: 5px 4px;
+  border-radius: 10px;
+  color: var(--a-ink);
+  font-size: 14.5px;
+}
+.asheet__a:hover { text-decoration: none; }
+.asheet__a:active { background: var(--a-mint); }
+.asheet__a.is-on { background: var(--a-mint-on); color: var(--a-brand-ink); font-weight: 600; }
+.asheet__a svg:first-child { width: 18px; flex: none; color: var(--a-mut); }
+.asheet__a.is-on svg:first-child { color: var(--a-brand-ink); }
+.asheet__a b {
+  margin-inline-start: auto;
+  background: var(--a-bad-soft); color: var(--a-bad);
+  font-size: 11px; font-weight: 700;
+  padding: 1px 8px; border-radius: 999px;
+}
+.asheet__foot {
+  display: grid; gap: 8px;
+  margin-block-start: 16px;
+  padding-block-start: 14px;
+  border-block-start: 1px solid var(--a-line-2);
+}
+.asheet__foot .b { min-height: 44px; }
+.asheet__foot form { display: grid; }
+
+/* ── toasts rise from the bottom, clear of the tabs ─────────────────────── */
+.flashes {
+  inset-block: auto calc(var(--atab-h) + var(--safe-b) + 12px);
+  inset-inline: 12px;
+  width: auto;
+  z-index: 80;
+}
+.flash { border-radius: 12px; box-shadow: 0 10px 30px -14px rgba(20, 33, 31, 0.5); }
+.flash__x {
+  align-self: center;
+  display: grid; place-items: center;
+  width: 34px; height: 34px;
+  margin: -6px -8px -6px auto;
+  font-size: 17px;
+}
+@keyframes toast-in { from { opacity: 0; transform: translateY(14px); } }
+
+/* ── media picker becomes a full-height sheet ───────────────────────────── */
+.modal { padding: 0; place-items: end stretch; }
+.modal__box {
+  width: 100%;
+  max-height: 92vh;
+  border-radius: 16px 16px 0 0;
+}
+.modal__h { padding: 13px 14px; }
+.modal__b { padding: 12px 14px calc(14px + var(--safe-b)); }
+.pgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+/* ── sections builder ───────────────────────────────────────────────────── */
+.sitem {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 12px;
+  align-items: start;
+}
+.sitem__n { display: none; }
+.sitem .drag {                     /* the injected move buttons, top corner */
+  grid-row: 1; grid-column: 2;
+  display: flex; gap: 6px; width: auto;
+}
+.sitem .drag > svg { display: none; }
+.sitem__t { grid-row: 1; grid-column: 1; }
+.sitem__a {
+  grid-row: 2; grid-column: 1 / -1;
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  padding-block-start: 10px;
+  border-block-start: 1px solid var(--a-line-2);
+}
+.sitem__a .b:not(.b--icon) { flex: 1; }
+.sitem__a form { display: flex; }
+
+/* ── login ──────────────────────────────────────────────────────────────── */
+.login { padding: 16px; align-content: center; }
+.login__box { padding: 24px 20px; border-radius: 16px; }
+.login h1 { font-size: 19px; }
+.login .b, .login button[type=submit] { width: 100%; min-height: 48px; }
+
+/* ── list toolbar ───────────────────────────────────────────────────────── */
+.ltb { padding: 10px 12px; gap: 8px; }
+.ltb .tabs { flex: 1 1 100%; order: 2; margin-inline: -12px; padding-inline: 12px; }
+.ltb__tools { width: 100%; margin: 0; }
+.ltb .search { flex: 1; }
+.ltb .search .in { min-width: 0; width: 100%; }
+.ltb .search kbd { display: none; }
+.chips { padding: 8px 12px; }
+/* the popovers rise as sheets, the way a phone shows a menu */
+.pop[open] > .pop__p {
+  position: fixed; inset: auto 0 calc(var(--atab-h) + var(--safe-b)) 0; top: auto;
+  width: auto; max-width: none; max-height: 70vh; overflow-y: auto;
+  border-radius: 18px 18px 0 0; padding: 16px 14px;
+  animation: sheet-up 0.28s var(--a-ease);
+}
+@keyframes sheet-up { from { transform: translateY(24px); opacity: 0; } }
+/* a backdrop-filter makes the top bar the containing block for fixed children,
+   which would pin a sheet opened from it to the bar instead of the screen */
+.top:has(.pop[open]) { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--a-bg); }
+.pop__foot .b { flex: 1; }
+
+/* ── wizard and record header ───────────────────────────────────────────── */
+.wiz__steps { gap: 6px; }
+.wiz__step b { font-size: 0; gap: 0; }
+.wiz__step b::before { font-size: 11px; }
+.wiz__step.is-on b { font-size: 12px; gap: 6px; }
+.wiz__pane h2 { font-size: 18px; }
+.wiz { padding-bottom: 84px; }
+.wiz > .wiz__nav { position: fixed; inset-inline: 0; inset-block-end: calc(var(--atab-h) + var(--safe-b)); z-index: 40;
+  background: rgba(255, 255, 255, 0.95); border-top: 1px solid var(--a-line); padding: 10px 12px;
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-radius: 0; margin: 0; }
+.wiz__nav { flex-wrap: wrap; }
+.wiz__nav .wiz__why { order: -1; flex-basis: 100%; color: var(--a-bad); }
+.wiz__nav .wiz__why:empty { display: none; }
+.wiz__nav .right { flex: 1; }
+.wiz__nav .right .b { flex: 1; }
+.plans { grid-template-columns: minmax(0, 1fr); }
+.hero { padding: 14px; border-radius: 14px; }
+.hero__acts { margin-left: 0; width: 100%; }
+.hero__acts > * { flex: 1; }
+.journey li { font-size: 10.5px; }
+.figs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.dtabs { width: 100%; }
+.dtabs a { flex: 1; text-align: center; padding: 7px 8px; }
+dialog.dlg { width: 100%; max-width: none; margin: auto 0 0; border-radius: 18px 18px 0 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .asheet__box, .asheet__scrim { transition-duration: 0.001ms !important; }
+}

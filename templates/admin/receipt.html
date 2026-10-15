@@ -1,0 +1,89 @@
+{% extends "admin/base.html" %}
+{% from "admin/_icons.html" import ico %}
+{% from "admin/_fields.html" import csrf %}
+
+{% block crumb %}
+<div class="top__crumb">
+  <a href="{{ url_for('admin.emi_ledger') }}">Ledger</a> &rsaquo;
+  {% if row.application_id %}<a href="{{ url_for('admin.emi_application_detail', app_id=row.application_id) }}">{{ row.app_ref }}</a> &rsaquo;{% endif %}
+  {{ row.receipt_no }}
+</div>
+{% endblock %}
+
+{% block actions %}
+<button class="b b--go" type="button" data-print>{{ ico('receipt') }} Print</button>
+{% if row.application_id %}
+<a class="b" href="{{ url_for('admin.emi_application_detail', app_id=row.application_id) }}">Back to the application</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="receipt">
+  <div class="receipt__h">
+    <div>
+      <h1>{{ brand.name }}</h1>
+      <p class="receipt__no" style="margin:6px 0 0">
+        {{ contact.address }}{% if contact.city %}, {{ contact.city }}{% endif %}<br>
+        {{ contact.phone }}{% if contact.email %} &middot; {{ contact.email }}{% endif %}
+      </p>
+    </div>
+    <div style="text-align:right">
+      <div class="receipt__no">Receipt</div>
+      <div style="font-size:18px; font-weight:600">{{ row.receipt_no }}</div>
+      <div class="receipt__no">{{ row.paid_at | datetime_fmt }}</div>
+      {% if row.status != 'paid' %}
+      <div style="margin-top:6px; color:var(--a-bad); font-weight:600; text-transform:uppercase">{{ row.status }}</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <table class="receipt__rows">
+    <tbody>
+      <tr><td>Received from</td><td><b>{{ row.applicant_name or row.payer_name }}</b></td></tr>
+      {% if row.phone %}<tr><td>Phone</td><td>{{ row.phone }}</td></tr>{% endif %}
+      {% if row.treatment_label %}<tr><td>Treatment</td><td>{{ row.treatment_label }}</td></tr>{% endif %}
+      {% if row.app_ref %}<tr><td>EMI application</td><td>{{ row.app_ref }}{% if row.plan_label %} &middot; {{ row.plan_label }}{% endif %}</td></tr>{% endif %}
+      {% if row.seq %}<tr><td>Instalment</td><td>#{{ row.seq }} of {{ row.tenure_months }}, due {{ row.due_date | date_fmt }}</td></tr>{% endif %}
+      <tr><td>Method</td><td>{{ row.method | upper }}{% if row.provider %} &middot; {{ row.provider }}{% endif %}</td></tr>
+      {% if row.provider_ref %}<tr><td>Reference</td><td><code>{{ row.provider_ref }}</code></td></tr>{% endif %}
+      {% if row.notes %}<tr><td>Note</td><td>{{ row.notes }}</td></tr>{% endif %}
+    </tbody>
+  </table>
+
+  <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:20px">
+    <div>
+      {% if totals %}
+      <div class="receipt__no">
+        Collected so far {{ totals.collected | money }}<br>
+        Outstanding after this receipt {{ totals.outstanding | money }}
+      </div>
+      {% endif %}
+    </div>
+    <div style="text-align:right">
+      <div class="receipt__no">Amount received</div>
+      <div class="receipt__total">{{ row.amount | money }}</div>
+    </div>
+  </div>
+
+  <div class="receipt__foot">
+    Recorded by {{ row.by_name or 'the practice' }} on {{ row.created_at | datetime_fmt }}.
+    This receipt acknowledges payment towards the instalment plan named above and is not a tax invoice.
+    {% if S('emi.receipt_note') %}<br>{{ S('emi.receipt_note') }}{% endif %}
+  </div>
+</div>
+
+{% if row.status == 'paid' %}
+<div class="panel no-print" style="max-width:720px; margin:18px auto 0">
+  <div class="panel__f">
+    {% if can('emi_admin') and row.status == 'paid' %}
+    <form method="post" action="{{ url_for('admin.emi_void_payment', payment_id=row.id) }}"
+          data-confirm="Void {{ row.receipt_no }} and reopen its instalment?">
+      {{ csrf() }}
+      <button class="b b--sm b--bad" type="submit">Void this receipt</button>
+    </form>
+    {% endif %}
+    <span class="hint">Voiding keeps the record and marks it refunded, so the ledger still balances.</span>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,38 @@
+{% from "public/_icons.html" import arrow %}
+<section class="sect sect--{{ d.tone or 'light' }}" id="{{ row.anchor or 'sec-' ~ row.id }}" data-sec="{{ row.type }}">
+  <div class="shell split {{ 'split--flip' if d.flip }}">
+    {% if d.media_id %}
+    <figure class="split__art rv {{ 'rv--right' if d.flip else 'rv--left' }}">
+      <img src="{{ media_url(d.media_id, 'medium') }}" alt="{{ media_alt(d.media_id) }}" loading="lazy" width="1000" height="880">
+    </figure>
+    {% endif %}
+    <div class="split__copy">
+      {% if row.eyebrow %}<span class="kicker rv rv--fade">{{ row.eyebrow }}</span>{% endif %}
+      {% if row.title %}<h2 class="h-lg rv" style="--i:1">{{ row.title }}</h2>{% endif %}
+      {% if row.subtitle %}<p class="lede rv" style="--i:2">{{ row.subtitle }}</p>{% endif %}
+      {% if row.body %}
+      <div class="prose rv" style="--i:3; margin-top:22px">
+        {% for para in row.body|paragraphs %}<p>{{ para }}</p>{% endfor %}
+      </div>
+      {% endif %}
+      {% if d.points %}
+      <ul class="points rv" style="--i:4">
+        {% for p in d.points %}
+        <li>
+          <span class="points__n">{{ loop.index }}</span>
+          <span>
+            <b>{{ p.title if p is mapping else p }}</b>
+            {% if p is mapping and p.text %}<span>{{ p.text }}</span>{% endif %}
+          </span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      {% if d.cta_label %}
+      <p class="rv" style="--i:5; margin-top:30px">
+        <a class="tlink" href="{{ d.cta_url or '#' }}">{{ d.cta_label }}{{ arrow() }}</a>
+      </p>
+      {% endif %}
+    </div>
+  </div>
+</section>

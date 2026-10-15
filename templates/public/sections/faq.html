@@ -1,0 +1,27 @@
+<section class="sect sect--{{ d.tone or 'light' }}" id="{{ row.anchor or 'sec-' ~ row.id }}" data-sec="{{ row.type }}">
+  <div class="shell">
+    <div class="head2 head2--center rv rv--fade">
+      {% if row.eyebrow %}<span class="kicker">{{ row.eyebrow }}</span>{% endif %}
+      {% if row.title %}<h2 class="h-lg">{{ row.title }}</h2>{% endif %}
+      {% if row.subtitle %}<p class="lede">{{ row.subtitle }}</p>{% endif %}
+    </div>
+
+    <div class="faqs" data-faqs>
+      {% for f in x.get('faqs', []) %}
+      <div class="faq rv rv--fade" style="--i:{{ loop.index0 }}">
+        <h3 style="font-size:inherit">
+          <button class="faq__q" type="button" aria-expanded="false" aria-controls="faq-{{ f.id }}">
+            {{ f.question }}
+          </button>
+        </h3>
+        <div class="faq__a" id="faq-{{ f.id }}" role="region">
+          <div class="faq__a-in">
+            {% if f.category %}<span class="faq__cat">{{ f.category }}</span>{% endif %}
+            {% for para in f.answer|paragraphs %}<p>{{ para }}</p>{% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>

@@ -1,0 +1,10 @@
+<section class="trust" id="{{ row.anchor or 'sec-' ~ row.id }}" data-sec="{{ row.type }}">
+  <div class="shell trust__grid">
+    {% for item in d.get('items', []) %}
+    <div class="trust__item rv rv--fade" style="--i:{{ loop.index0 }}">
+      <b>{{ item.title if item is mapping else item }}</b>
+      {% if item is mapping and item.text %}<span>{{ item.text }}</span>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</section>

@@ -1,0 +1,205 @@
+{% extends "admin/base.html" %}
+{% from "admin/_icons.html" import ico %}
+{% from "admin/_fields.html" import csrf, badge %}
+
+{% block crumb %}
+<div class="top__crumb"><a href="{{ url_for('admin.pages_list') }}">Pages</a> &rsaquo; {{ 'New page' if not row else row.slug }}</div>
+{% endblock %}
+
+{% block actions %}
+<a class="b" href="{{ url_for('admin.pages_list') }}">All pages</a>
+{% if row %}
+<a class="b" href="{{ '/' if row.is_home else '/' ~ row.slug }}" target="_blank" rel="noopener">{{ ico('external') }} View</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+
+{% if row %}
+<div class="panel">
+  <div class="panel__h">
+    <div>
+      <h2>Sections</h2>
+      <p>Top to bottom, this is the page.
+        <span class="nophone">Drag the handle to reorder, or use the arrow keys on it.</span>
+        <span class="onlyphone">Use the arrows on a card to reorder.</span></p>
+    </div>
+    <div class="right">
+      <a class="b b--go" href="#add-section">{{ ico('plus') }} Add a section</a>
+    </div>
+  </div>
+  <div class="panel__b">
+    {% if sections %}
+    <div class="sbuild" data-reorder="{{ url_for('admin.sections_reorder') }}">
+      {% for s in sections %}
+      <div class="sitem {{ 'is-draft' if not s.is_published }}" data-id="{{ s.id }}">
+        <span class="drag" title="Drag or use the arrow keys">{{ ico('drag') }}</span>
+        <span class="sitem__n">{{ loop.index }}</span>
+        <span class="sitem__t">
+          <b><a class="rowlink" href="{{ url_for('admin.section_edit', section_id=s.id) }}">{{ s.name or type_label(s.type) }}</a></b>
+          <span>
+            {{ type_label(s.type) }}
+            {% if s.anchor %} &middot; #{{ s.anchor }}{% endif %}
+            {% if s.title %} &middot; {{ s.title | shorten(52) }}{% endif %}
+          </span>
+        </span>
+        <span class="sitem__a">
+          {% if not s.is_published %}{{ badge('draft', 'warn') }}{% endif %}
+          <label class="sw" style="padding:0" title="Show on the site">
+            <input type="checkbox" {{ 'checked' if s.is_published }}
+                   data-toggle-url="{{ url_for('admin.section_toggle', section_id=s.id) }}"
+                   aria-label="Publish {{ s.name or type_label(s.type) }}">
+            <span class="sw__t"></span>
+          </label>
+          <a class="b b--sm" href="{{ url_for('admin.section_edit', section_id=s.id) }}">Edit</a>
+          <form method="post" action="{{ url_for('admin.section_move', section_id=s.id) }}" class="no-js-only" style="display:inline">
+            {{ csrf() }}<input type="hidden" name="dir" value="up">
+            <button class="b b--sm b--icon" type="submit" title="Move up">{{ ico('up') }}</button>
+          </form>
+          <form method="post" action="{{ url_for('admin.section_move', section_id=s.id) }}" class="no-js-only" style="display:inline">
+            {{ csrf() }}<input type="hidden" name="dir" value="down">
+            <button class="b b--sm b--icon" type="submit" title="Move down">{{ ico('down') }}</button>
+          </form>
+          <form method="post" action="{{ url_for('admin.section_duplicate', section_id=s.id) }}" style="display:inline">
+            {{ csrf() }}
+            <button class="b b--sm b--icon" type="submit" title="Duplicate">{{ ico('copy') }}</button>
+          </form>
+          <form method="post" action="{{ url_for('admin.section_delete', section_id=s.id) }}" style="display:inline"
+                data-confirm="Delete the {{ type_label(s.type) | lower }} section?">
+            {{ csrf() }}
+            <button class="b b--sm b--icon b--bad" type="submit" title="Delete">{{ ico('trash') }}</button>
+          </form>
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty">
+      <h3>This page has no sections</h3>
+      <p>Pick a section type below. New sections start as drafts, so nothing appears on the site until you publish.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="panel" id="add-section">
+  <div class="panel__h">
+    <div><h2>Add a section</h2><p>Each type has its own editor and its own layout on the site.</p></div>
+    <div class="right">
+      <input class="in" id="type-filter" type="search" placeholder="Filter types" style="min-width:180px">
+    </div>
+  </div>
+  <div class="panel__b">
+    <form method="post" action="{{ url_for('admin.section_add', page_id=row.id) }}">
+      {{ csrf() }}
+      <div class="typegrid">
+        {% for key, spec in SECTION_TYPES.items() %}
+        <button class="typecard" type="submit" name="type" value="{{ key }}">
+          <b>{{ spec.label }}</b>
+          <span>{{ spec.blurb }}</span>
+        </button>
+        {% endfor %}
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<form method="post" data-guard>
+  {{ csrf() }}
+  <div class="panel">
+    <div class="panel__h">
+      <div><h2>Page settings</h2><p>Address, title and what search engines and social cards show.</p></div>
+    </div>
+    <div class="panel__b">
+      <div class="fg">
+        <div class="fi fi--8">
+          <label for="title">Title <em>*</em></label>
+          <input class="in" id="title" name="title" value="{{ row.title if row else '' }}" required>
+          <span class="hint">Used in the browser tab and as the fallback for the meta title.</span>
+        </div>
+        <div class="fi fi--4">
+          <label for="slug">Address</label>
+          <div class="wrapin">
+            <span class="fix">/</span>
+            <input class="in" id="slug" name="slug" value="{{ row.slug if row else '' }}">
+          </div>
+          <span class="hint">{% if row and row.is_home %}The home page always serves at /.{% else %}Leave blank to build it from the title.{% endif %}</span>
+        </div>
+
+        <div class="fi fi--12 fhead"><h3>Search and sharing</h3></div>
+        <div class="fi fi--6">
+          <label for="meta_title">Meta title</label>
+          <input class="in" id="meta_title" name="meta_title" value="{{ row.meta_title if row else '' }}" maxlength="70">
+          <span class="hint">About 60 characters. Blank falls back to the page title.</span>
+        </div>
+        <div class="fi fi--6">
+          <label for="meta_description">Meta description</label>
+          <textarea class="in" id="meta_description" name="meta_description" rows="3" maxlength="180">{{ row.meta_description if row else '' }}</textarea>
+          <span class="hint">About 155 characters. This is the grey text under the link on Google.</span>
+        </div>
+        <div class="fi fi--6">
+          <label>Sharing image</label>
+          {% set m = media_row(row.og_media_id) if row else none %}
+          <div class="pick" data-pick>
+            <div class="pick__pv" data-pick-preview>
+              {% if m %}<img src="{{ media_url(m, 'thumb') }}" alt="">{% else %}No image{% endif %}
+            </div>
+            <div class="pick__side">
+              <input type="hidden" name="og_media_id" value="{{ row.og_media_id if row and row.og_media_id else '' }}" data-pick-input>
+              <div style="display:flex; gap:6px">
+                <button class="b b--sm" type="button" data-pick-open>{{ ico('image') }} Choose</button>
+                <button class="b b--sm b--ghost" type="button" data-pick-clear>Clear</button>
+              </div>
+              <span class="pick__meta" data-pick-meta>{% if m %}#{{ m.id }}{% else %}Nothing selected{% endif %}</span>
+            </div>
+          </div>
+          <span class="hint">Shown when the page is pasted into WhatsApp or Facebook. 1200&times;630 works best.</span>
+        </div>
+        <div class="fi fi--6">
+          <label>Visibility</label>
+          <label class="sw">
+            <input type="checkbox" name="is_published" value="1" {{ 'checked' if not row or row.is_published }}>
+            <span class="sw__t"></span>
+            <span class="sw__l">Published<span>Unpublished pages return a 404 to visitors.</span></span>
+          </label>
+          {% if row and not row.is_home %}
+          <label class="sw">
+            <input type="checkbox" name="is_home" value="1">
+            <span class="sw__t"></span>
+            <span class="sw__l">Make this the home page<span>The current home page keeps its own address.</span></span>
+          </label>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="savebar">
+    <button class="b b--go" type="submit">{{ ico('save') }} {{ 'Create page' if not row else 'Save page' }}</button>
+    <span class="savebar__note">
+      {% if row %}{{ row.n_sections if row.n_sections else (sections | length) }} section{{ 's' if (sections | length) != 1 }} on this page{% else %}You can add sections once the page exists{% endif %}
+    </span>
+  </div>
+</form>
+
+{% if row and not row.is_home %}
+<div class="panel">
+  <div class="panel__h"><div><h2>Danger zone</h2><p>Deleting a page also deletes its sections.</p></div></div>
+  <div class="panel__f">
+    <form method="post" action="{{ url_for('admin.page_delete', row_id=row.id) }}"
+          data-confirm="Delete “{{ row.title }}” and its {{ sections | length }} section(s)?">
+      {{ csrf() }}
+      <button class="b b--bad" type="submit">{{ ico('trash') }} Delete this page</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce() }}">
+  /* The up/down buttons are the no-JS fallback; drag handles cover the rest. */
+  document.querySelectorAll('.no-js-only').forEach((el) => el.remove());
+</script>
+{% endblock %}

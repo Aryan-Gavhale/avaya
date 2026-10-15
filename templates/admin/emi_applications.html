@@ -1,0 +1,113 @@
+{% extends "admin/base.html" %}
+{% from "admin/_icons.html" import ico %}
+{% from "admin/_fields.html" import csrf, badge %}
+{% from "admin/_list.html" import columns_pop, chip %}
+
+{% block actions %}
+{% if can('emi_admin') %}
+<a class="b" href="{{ url_for('admin.emi_plans_list') }}">{{ ico('percent') }} Plans</a>
+{% endif %}
+<a class="b b--go" data-fab href="{{ url_for('admin.emi_application_new') }}">{{ ico('plus') }} New application</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="stats">
+  <div class="sc">
+    <span class="sc__l">Collected to date</span>
+    <span class="sc__n">{{ totals.collected | money }}</span>
+    <span class="sc__d"><a href="{{ url_for('admin.emi_ledger') }}">Open the ledger</a></span>
+  </div>
+  <div class="sc">
+    <span class="sc__l">Outstanding</span>
+    <span class="sc__n">{{ totals.outstanding | money }}</span>
+    <span class="sc__d">Across every live schedule</span>
+  </div>
+  <div class="sc {{ 'sc--bad' if totals.overdue }}">
+    <span class="sc__l">Overdue</span>
+    <span class="sc__n">{{ totals.overdue | money }}</span>
+    <span class="sc__d">
+      {% if totals.overdue %}<a href="{{ url_for('admin.emi_ledger', view='overdue') }}">Chase these</a>
+      {% else %}Nothing late{% endif %}
+    </span>
+  </div>
+  <div class="sc">
+    <span class="sc__l">Awaiting a decision</span>
+    <span class="sc__n">{{ (counts.get('submitted', 0) + counts.get('under_review', 0)) }}</span>
+    <span class="sc__d">Submitted or under review</span>
+  </div>
+</div>
+
+<div class="panel">
+  <form class="ltb" method="get" data-pops>
+    {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+    <nav class="tabs" aria-label="Status">
+      <a class="tab {{ 'is-on' if not status }}" href="{{ url_for('admin.emi_applications', q=search or None) }}">All <b>{{ counts.values() | sum }}</b></a>
+      {% for key, label in labels.items() %}
+        {% if counts.get(key) %}
+        <a class="tab {{ 'is-on' if status == key }}" href="{{ url_for('admin.emi_applications', status=key, q=search or None) }}">
+          {{ label }} <b>{{ counts.get(key) }}</b></a>
+        {% endif %}
+      {% endfor %}
+    </nav>
+    <div class="ltb__tools">
+      <label class="search">
+        {{ ico('search') }}
+        <span class="sr">Search applications</span>
+        <input class="in" type="search" name="q" value="{{ search }}" placeholder="Name, phone or reference" data-slash>
+        <kbd>/</kbd>
+      </label>
+      {{ columns_pop('emi-applications') }}
+    </div>
+  </form>
+  <div data-live="chips">
+  {% if search %}
+  <div class="chips">
+    {{ chip('admin.emi_applications', {'status': status, 'q': search}, 'q', 'Search', '"' ~ search ~ '"') }}
+  </div>
+  {% endif %}
+  </div>
+  <div class="panel__b panel__b--flush" data-live="results">
+    {% if rows %}
+    <div class="tw">
+      <table class="t" data-cols="emi-applications">
+        <thead>
+          <tr><th data-col="patient" data-lock>Patient</th><th data-col="treatment">Treatment</th>
+              <th data-col="plan">Plan</th><th class="num" data-col="monthly">Monthly</th>
+              <th class="num" data-col="outstanding">Outstanding</th><th data-col="status">Status</th>
+              <th data-col="raised">Raised</th><th class="act" data-col="act" data-lock></th></tr>
+        </thead>
+        <tbody>
+          {% for a in rows %}
+          <tr>
+            <td>
+              <a class="rowlink" href="{{ url_for('admin.emi_application_detail', app_id=a.id) }}">{{ a.applicant_name }}</a>
+              <span class="t__sub">{{ a.ref }}{% if a.phone %} &middot; {{ a.phone }}{% endif %}</span>
+            </td>
+            <td data-label="Treatment">{{ a.treatment_label or '—' }}
+              <span class="t__sub">{{ a.treatment_amount | money }}</span></td>
+            <td data-label="Plan">{{ a.plan_label }}
+              <span class="t__sub">{{ a.tenure_months }} months{{ ' at ' ~ a.interest_rate ~ '%' if a.interest_rate else ', no cost' }}</span></td>
+            <td class="num" data-label="Monthly">{{ a.monthly_emi | money }}</td>
+            <td class="num" data-label="Outstanding">
+              {{ a.outstanding | money }}
+              {% if a.overdue_n %}<span class="t__sub" style="color:var(--a-bad)">{{ a.overdue_n }} late</span>{% endif %}
+            </td>
+            <td data-label="Status">{{ badge(labels.get(a.status, a.status), tone.get(a.status, '')) }}</td>
+            <td class="t__sub" data-label="Raised">{{ a.created_at | ago }}</td>
+            <td class="act"><a class="b b--sm" href="{{ url_for('admin.emi_application_detail', app_id=a.id) }}">Open</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty">
+      <h3>{% if search %}Nothing matched &ldquo;{{ search }}&rdquo;{% elif status %}Nothing matches{% else %}No applications yet{% endif %}</h3>
+      <p>{% if search %}Try part of the name, the last digits of the phone, or the EMI reference.{% else %}Applications arrive from the public EMI form, from an enquiry, or you can raise one here.{% endif %}</p>
+      <a class="b b--go" href="{{ url_for('admin.emi_application_new') }}">{{ ico('plus') }} New application</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

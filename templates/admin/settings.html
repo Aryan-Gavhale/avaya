@@ -1,0 +1,136 @@
+{% extends "admin/base.html" %}
+{% from "admin/_icons.html" import ico %}
+{% from "admin/_fields.html" import fields as render_fields, csrf %}
+
+{% block crumb %}<div class="top__crumb">{{ spec.label }}</div>{% endblock %}
+
+{% block actions %}
+<a class="b" href="/" target="_blank" rel="noopener">{{ ico('external') }} View the website</a>
+{% endblock %}
+
+{% block content %}
+<div class="panel">
+  <div class="panel__h">
+    <div class="tabs">
+      {% for key, g in groups.items() %}
+      <a class="tab {{ 'is-on' if key == group }}" href="{{ url_for('admin.settings_home', group=key) }}">{{ g.label }}</a>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<form method="post" action="{{ url_for('admin.settings_save', group=group) }}" data-guard>
+  {{ csrf() }}
+  <div class="panel">
+    <div class="panel__h">
+      <div><h2>{{ spec.label }}</h2><p>{{ spec.blurb }}</p></div>
+    </div>
+    <div class="panel__b">
+      <div class="fg">
+        {{ render_fields(spec.fields, values) }}
+      </div>
+    </div>
+  </div>
+
+  {% if group == 'theme' %}
+  <div class="panel">
+    <div class="panel__h">
+      <div><h2>Preview</h2><p>Changes as you pick. The panel around you shows the admin colours live. Save to keep them.</p></div>
+      <div class="right"><button class="b b--sm" type="button" data-theme-defaults>{{ ico('refresh') }} Shipped colours</button></div>
+    </div>
+    <div class="panel__b">
+      <div class="tprev">
+        <div class="tprev__site" data-site-prev>
+          <div class="tprev__hero">
+            <span class="tprev__eye"><span class="tprev__stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span> 4.9 on Google</span>
+            <h3>{{ values.get('brand.tagline') or 'Dentistry that explains itself' }}</h3>
+            <p>Muted copy sits under headings, like this sentence about painless treatment.</p>
+            <div class="tprev__acts"><span class="tprev__btn">Book a visit</span><span class="tprev__btn tprev__btn--line">Treatments</span></div>
+          </div>
+          <div class="tprev__alt"><b>Alternate section</b><span>Cards sit on the surface colour.</span></div>
+          <div class="tprev__dark"><span class="tprev__stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span> A dark band uses the dark primary and the accent.</div>
+        </div>
+        <div class="tprev__admin" aria-hidden="true">
+          <div class="tprev__side">
+            <span class="tprev__lab">Patients</span>
+            <span class="tprev__it is-on">{{ ico('inbox') }} Enquiries</span>
+            <span class="tprev__it is-hover">{{ ico('wallet') }} EMI applications</span>
+            <span class="tprev__it">{{ ico('receipt') }} Payments ledger</span>
+          </div>
+          <div class="tprev__main">
+            <span class="tprev__in">Focused field</span>
+            <div class="tprev__row"><span class="b b--go b--sm">Save</span><span class="b b--sm">Cancel</span>
+              <span class="tab is-on">All <b>9</b></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if group == 'hours' %}
+  <div class="panel">
+    <div class="panel__h"><div><h2>How this reads on the site</h2></div></div>
+    <div class="panel__b">
+      <ul style="margin:0; padding-left:18px; font-size:13.5px">
+        {% for line in hours_rows %}
+        <li>{{ line.days }} &mdash; {{ line.text }}{% if line.is_today %} <b>(today)</b>{% endif %}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="savebar">
+    <button class="b b--go" type="submit">{{ ico('save') }} Save {{ spec.label | lower }}</button>
+    <span class="savebar__note">Changes take effect on the next page load. Nothing is cached.</span>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+{% if group == 'theme' %}
+<script nonce="{{ csp_nonce() }}">
+  /* Live theme preview. Website colours drive the mock-up; admin colours are
+     written onto this page's own root, so the whole panel previews them. */
+  const SITE = { 'theme.primary': '--p', 'theme.primary_dark': '--pd', 'theme.accent': '--ac',
+                 'theme.ink': '--ink', 'theme.muted': '--mu', 'theme.surface': '--sf',
+                 'theme.canvas': '--cv' };
+  const ADMIN = { 'admin.accent': '--a-accent', 'admin.canvas': '--a-bg',
+                  'admin.sidebar': '--a-side-c', 'admin.ink': '--a-ink' };
+  const DEFAULTS = {{ defaults | tojson }};
+  const HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+  const form = document.querySelector('form[action*="/settings/theme/"]');
+  const prev = document.querySelector('[data-site-prev]');
+  const field = (name) => form.querySelector(`input[name="${name}"]`);
+
+  const paint = () => {
+    Object.entries({ ...SITE, ...ADMIN }).forEach(([name, cssVar]) => {
+      const input = field(name);
+      if (!input) return;
+      const value = input.value.trim();
+      const ok = HEX.test(value);
+      input.classList.toggle('is-bad', !!value && !ok);
+      if (!ok) return;
+      (name in SITE ? prev : document.documentElement).style.setProperty(cssVar, value);
+    });
+    const radius = parseInt(field('theme.radius')?.value || '', 10);
+    if (radius >= 0) prev.style.setProperty('--r', Math.min(radius, 40) + 'px');
+  };
+  form.addEventListener('input', paint);
+  form.addEventListener('change', paint);
+
+  document.querySelector('[data-theme-defaults]').addEventListener('click', () => {
+    Object.keys({ ...SITE, ...ADMIN }).forEach((name) => {
+      const input = field(name);
+      if (!input || !DEFAULTS[name]) return;
+      input.value = DEFAULTS[name];
+      const swatch = form.querySelector(`input[data-colour-for="${input.id}"]`);
+      if (swatch && /^#[0-9a-f]{6}$/i.test(DEFAULTS[name])) swatch.value = DEFAULTS[name];
+    });
+    form.dispatchEvent(new Event('input'));
+  });
+  paint();
+</script>
+{% endif %}
+{% endblock %}

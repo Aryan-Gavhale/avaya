@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="{{ brand_name }} admin">
+<meta name="theme-color" content="{{ admin_theme.canvas }}">
+<title>{{ title }} &middot; {{ brand_name }} admin</title>
+<script nonce="{{ csp_nonce() }}">
+document.documentElement.classList.add('js');
+try { if (localStorage.getItem('admin.side.mini') === '1') document.documentElement.classList.add('side-mini'); } catch (e) { /* private mode */ }
+</script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin-phone.css') }}" media="(max-width: 760px)">
+{% include "admin/_theme.html" %}
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='{{ admin_theme.accent | urlencode }}'/><text x='16' y='22' font-family='sans-serif' font-size='16' fill='white' text-anchor='middle'>A</text></svg>">
+</head>
+<body>
+{% from "admin/_icons.html" import ico %}
+
+<div class="shell">
+  <aside class="side" id="side">
+    <div class="side__top">
+      <a class="side__brand" href="{{ url_for('admin.dashboard') }}">
+        <span class="side__mark">{{ ico('tooth') }}</span>
+        <span class="side__brand-t">
+          <span class="side__name">{{ brand_name }}</span>
+          <span class="side__sub">Practice admin</span>
+        </span>
+      </a>
+      <a class="side__view" href="/" target="_blank" rel="noopener" data-tip="View the website">{{ ico('external') }} <span class="side__t">View the website</span></a>
+    </div>
+
+    <nav class="side__nav" aria-label="Admin sections">
+      {% for group_label, items in nav_groups %}
+        {% set allowed = [] %}
+        {% for endpoint, label, icon_name, area in items %}
+          {% if area is none or can(area) %}{% set _ = allowed.append((endpoint, label, icon_name)) %}{% endif %}
+        {% endfor %}
+        {% if allowed %}
+        {% set folded = group_label in nav_folded %}
+        {% set grp = namespace(on=false) %}
+        {% for endpoint, label, icon_name in allowed %}
+          {% if request.endpoint == endpoint or (nav_active is defined and nav_active == endpoint) %}{% set grp.on = true %}{% endif %}
+        {% endfor %}
+        {% if folded %}
+        <details class="side__group" data-fold="{{ group_label | lower | replace(' ', '-') }}" {{ 'open' if grp.on }}>
+          <summary class="side__label" data-tip="{{ group_label }}"><span class="side__t">{{ group_label }}</span></summary>
+        {% else %}
+        <div class="side__group">
+          <div class="side__label"><span class="side__t">{{ group_label }}</span></div>
+        {% endif %}
+          {% for endpoint, label, icon_name in allowed %}
+          <a class="side__a {{ 'is-on' if request.endpoint == endpoint or (nav_active is defined and nav_active == endpoint) }}"
+             href="{{ url_for(endpoint) }}" data-tip="{{ label }}">
+            {{ ico(icon_name) }} <span class="side__t">{{ label }}</span>
+            {% if endpoint == 'admin.enquiries_list' and new_enquiries %}<b>{{ new_enquiries }}</b>{% endif %}
+          </a>
+          {% endfor %}
+        {% if folded %}</details>{% else %}</div>{% endif %}
+        {% endif %}
+      {% endfor %}
+    </nav>
+
+    <div class="side__foot">
+      <div class="side__me">
+        <a class="side__av" href="{{ url_for('admin.account') }}" data-tip="{{ admin_user.name }} &middot; your account">{{ admin_user.name | initials }}</a>
+        <span class="side__me-t">
+          <b>{{ admin_user.name }}</b>
+          <span>{{ ROLE_LABELS.get(admin_user.role, admin_user.role) }}</span>
+        </span>
+        <form method="post" action="{{ url_for('admin.logout') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="side__out" type="submit" title="Sign out" aria-label="Sign out" data-tip="Sign out">{{ ico('out') }}</button>
+        </form>
+      </div>
+      <a class="side__acct" href="{{ url_for('admin.account') }}">Your account</a>
+    </div>
+  </aside>
+  {# Runs before the first paint. Every sidebar click is a full page load, which
+     used to drop the sidebar back to the top; this puts it back where it was.
+     Folded groups are restored first, because they change how tall it is. #}
+  <script nonce="{{ csp_nonce() }}">
+  (() => {
+    const side = document.getElementById('side');
+    if (!side) return;
+    let store = null;
+    try { store = window.sessionStorage; } catch (e) { /* private mode */ }
+    let folds = {};
+    try { folds = JSON.parse(localStorage.getItem('admin.folds') || '{}'); } catch (e) { folds = {}; }
+    // The icon rail shows every page, so it opens folded groups without
+    // remembering that as the user's choice.
+    const rail = () => document.documentElement.classList.contains('side-mini')
+      && window.matchMedia('(min-width: 1001px)').matches;
+    side.querySelectorAll('details[data-fold]').forEach((d) => {
+      if (!d.querySelector('.is-on') && d.dataset.fold in folds) d.open = folds[d.dataset.fold];
+      if (rail() && !d.open) { d.open = true; d.dataset.railOpen = ''; }
+      d.addEventListener('toggle', () => {
+        if (rail()) return;
+        folds[d.dataset.fold] = d.open;
+        try { localStorage.setItem('admin.folds', JSON.stringify(folds)); } catch (e) { /* full */ }
+      });
+    });
+    // Stagger index for the sweep-in, and the sweep itself once per sign-in.
+    side.querySelectorAll('.side__top, .side__label, .side__a, .side__foot')
+      .forEach((el, i) => el.style.setProperty('--i', i));
+    if (store && !store.getItem('admin.side.in')) {
+      store.setItem('admin.side.in', '1');
+      side.classList.add('is-entering');
+      setTimeout(() => side.classList.remove('is-entering'), 1600);
+    }
+    const y = store && parseInt(store.getItem('admin.side.y') || '', 10);
+    if (y > 0) side.scrollTop = y;
+    const on = side.querySelector('.side__a.is-on');
+    if (on) {
+      const box = side.getBoundingClientRect(), it = on.getBoundingClientRect();
+      if (it.top < box.top || it.bottom > box.bottom) on.scrollIntoView({ block: 'center' });
+    }
+    const save = () => { if (store) store.setItem('admin.side.y', String(side.scrollTop)); };
+    side.addEventListener('click', save);
+    window.addEventListener('pagehide', save);
+  })();
+  </script>
+  <div class="scrim" id="scrim" hidden></div>
+
+  {# the four screens the phone tab bar reaches; everything else is a level down
+     and therefore gets a back chevron in the app bar #}
+  {% set tab_endpoints = ['admin.dashboard', 'admin.enquiries_list',
+                          'admin.emi_applications', 'admin.pages_list'] %}
+
+  <div class="main">
+    <header class="top">
+      <button class="sidetog" id="sidetog" type="button" aria-controls="side" aria-expanded="true"
+              aria-label="Collapse the sidebar">{{ ico('sidebar') }}</button>
+      <button class="burger2" id="burger2" type="button" aria-label="Menu"><span></span><span></span><span></span></button>
+      {% if request.endpoint not in tab_endpoints %}
+      <button class="backb" type="button" data-back aria-label="Back">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      {% endif %}
+      <div>
+        <h1 class="top__t">{{ title }}</h1>
+        {% block crumb %}{% endblock %}
+      </div>
+      <div class="top__actions">{% block actions %}{% endblock %}</div>
+    </header>
+
+    <div class="wrap">
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+</div>
+
+<div class="flashes" id="flashes">
+  {% for category, message in get_flashed_messages(with_categories=true) %}
+  <div class="flash {{ 'flash--error' if category == 'error' }}">
+    <span>{{ message }}</span>
+    <button class="flash__x" type="button" aria-label="Dismiss">&times;</button>
+  </div>
+  {% endfor %}
+</div>
+
+{# ── phone tab bar and sheet ─────────────────────────────────────────────────
+   Under 760px the dark sidebar is hidden and these take over. The four tabs
+   are the screens the practice lives in; everything else, plus the account
+   and sign-out, sits one tap away in the sheet. #}
+<nav class="atabs" aria-label="Admin sections">
+  <a class="atabs__a {{ 'is-on' if request.endpoint == 'admin.dashboard' }}"
+     href="{{ url_for('admin.dashboard') }}">
+    <span class="atabs__i">{{ ico('grid') }}</span>
+    Home
+  </a>
+  {% if can('enquiries') %}
+  <a class="atabs__a {{ 'is-on' if request.endpoint in ['admin.enquiries_list', 'admin.enquiry_detail'] }}"
+     href="{{ url_for('admin.enquiries_list') }}">
+    <span class="atabs__i">
+      {{ ico('inbox') }}
+      {% if new_enquiries %}<b class="atabs__n">{{ new_enquiries if new_enquiries < 100 else '99+' }}</b>{% endif %}
+    </span>
+    Enquiries
+  </a>
+  {% endif %}
+  {% if can('emi') %}
+  <a class="atabs__a {{ 'is-on' if request.endpoint and request.endpoint.startswith('admin.emi') }}"
+     href="{{ url_for('admin.emi_applications') }}">
+    <span class="atabs__i">{{ ico('wallet') }}</span>
+    EMI
+  </a>
+  {% endif %}
+  {% if can('content') %}
+  <a class="atabs__a {{ 'is-on' if request.endpoint in ['admin.pages_list', 'admin.page_edit', 'admin.page_new', 'admin.section_edit', 'admin.section_new'] }}"
+     href="{{ url_for('admin.pages_list') }}">
+    <span class="atabs__i">{{ ico('layout') }}</span>
+    Website
+  </a>
+  {% endif %}
+  <button class="atabs__a" type="button" data-asheet-open
+          aria-expanded="false" aria-controls="more-sheet">
+    <span class="atabs__i">{{ ico('menu') }}</span>
+    More
+  </button>
+</nav>
+
+<div class="asheet" id="more-sheet" hidden>
+  <div class="asheet__scrim" data-asheet-close></div>
+  <div class="asheet__box" role="dialog" aria-modal="true" aria-label="All admin sections">
+    <span class="asheet__grab" aria-hidden="true"></span>
+    <div class="asheet__h">
+      <span class="asheet__av">{{ admin_user.name | initials }}</span>
+      <span class="asheet__who">
+        <b>{{ admin_user.name }}</b>
+        <span>{{ ROLE_LABELS.get(admin_user.role, admin_user.role) }}</span>
+      </span>
+      <button class="b b--icon asheet__x" type="button" data-asheet-close aria-label="Close">
+        {{ ico('x') }}
+      </button>
+    </div>
+    <div class="asheet__b">
+      {% for group_label, items in nav_groups %}
+        {% set allowed = [] %}
+        {% for endpoint, label, icon_name, area in items %}
+          {% if area is none or can(area) %}{% set _ = allowed.append((endpoint, label, icon_name)) %}{% endif %}
+        {% endfor %}
+        {% if allowed %}
+        <div class="asheet__label">{{ group_label }}</div>
+        {% for endpoint, label, icon_name in allowed %}
+        <a class="asheet__a {{ 'is-on' if request.endpoint == endpoint }}" href="{{ url_for(endpoint) }}">
+          {{ ico(icon_name) }} {{ label }}
+          {% if endpoint == 'admin.enquiries_list' and new_enquiries %}<b>{{ new_enquiries }}</b>{% endif %}
+        </a>
+        {% endfor %}
+        {% endif %}
+      {% endfor %}
+
+      <div class="asheet__foot">
+        <a class="b" href="{{ url_for('admin.account') }}">{{ ico('user') }} Your account</a>
+        <a class="b" href="/" target="_blank" rel="noopener">{{ ico('external') }} View the website</a>
+        <form method="post" action="{{ url_for('admin.logout') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="b b--bad" type="submit">{{ ico('out') }} Sign out</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="picker" hidden>
+  <div class="modal__box">
+    <div class="modal__h">
+      <h2>Choose an image</h2>
+      <button class="b b--ghost b--sm modal__x" type="button" data-picker-close>Close</button>
+    </div>
+    <div class="modal__b" id="picker-body"></div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/admin.js') }}" defer></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

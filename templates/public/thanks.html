@@ -1,0 +1,26 @@
+{% extends "public/base.html" %}
+{% from "public/_icons.html" import tick, arrow %}
+
+{% block content %}
+<section class="thanks">
+  <div class="shell thanks__in">
+    <span class="thanks__tick rv rv--scale">{{ tick() }}</span>
+    <h1 class="h-lg rv" style="--i:1">
+      {% if kind == 'emi' %}Application received{% else %}{{ title }}{% endif %}
+    </h1>
+    {% if ref %}<span class="thanks__ref rv rv--fade" style="--i:2">{{ ref }}</span>{% endif %}
+    <p class="lede rv" style="--i:3">
+      {% if kind == 'emi' %}
+      We will ring you to confirm the plan and collect a PAN and one address proof. Nothing is
+      charged for applying, and you can change the tenure before treatment starts.
+      {% else %}
+      {{ body }}
+      {% endif %}
+    </p>
+    <div class="hero__cta rv" style="--i:4">
+      <a class="btn btn--primary btn--lg" href="/">Back to the site{{ arrow() }}</a>
+      <a class="btn btn--line btn--lg" href="tel:{{ contact.phone|replace(' ','') }}">Call {{ contact.phone_display or contact.phone }}</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

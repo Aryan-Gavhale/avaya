@@ -1,0 +1,24 @@
+<section class="sect sect--{{ d.tone or 'light' }}" id="{{ row.anchor or 'sec-' ~ row.id }}" data-sec="{{ row.type }}">
+  <div class="shell">
+    {% if row.title or row.eyebrow %}
+    <div class="head2 rv rv--fade">
+      {% if row.eyebrow %}<span class="kicker">{{ row.eyebrow }}</span>{% endif %}
+      {% if row.title %}<h2 class="h-lg">{{ row.title }}</h2>{% endif %}
+      {% if row.subtitle %}<p class="lede">{{ row.subtitle }}</p>{% endif %}
+    </div>
+    {% endif %}
+
+    {% set layout = d.layout or 'mosaic' %}
+    <div class="{{ 'mosaic' if layout == 'mosaic' else ('grid4' if layout == 'grid' else 'rail') }}" data-gallery>
+      {% for m in x.get('items', []) %}
+      <button class="mosaic__i rv rv--scale" style="--i:{{ loop.index0 }}" type="button"
+              data-full="{{ media_url(m, 'original') }}"
+              data-cap="{{ m.caption or m.alt }}"
+              aria-label="Enlarge: {{ m.caption or m.alt }}">
+        <img src="{{ media_url(m, 'medium') }}" alt="{{ m.alt or m.caption }}" loading="lazy" width="800" height="600">
+        {% if m.caption %}<span class="mosaic__cap">{{ m.caption }}</span>{% endif %}
+      </button>
+      {% endfor %}
+    </div>
+  </div>
+</section>

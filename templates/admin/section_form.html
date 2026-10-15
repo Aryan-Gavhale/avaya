@@ -1,0 +1,107 @@
+{% extends "admin/base.html" %}
+{% from "admin/_icons.html" import ico %}
+{% from "admin/_fields.html" import fields as render_fields, csrf, badge %}
+
+{% block crumb %}
+<div class="top__crumb">
+  <a href="{{ url_for('admin.pages_list') }}">Pages</a> &rsaquo;
+  <a href="{{ url_for('admin.page_edit', row_id=page.id) }}">{{ page.title }}</a> &rsaquo;
+  {{ type_label(row.type) }}
+</div>
+{% endblock %}
+
+{% block actions %}
+<a class="b" href="{{ url_for('admin.page_edit', row_id=page.id) }}">Back to the page</a>
+<a class="b" href="{{ ('/' if page.is_home else '/' ~ page.slug) ~ '#' ~ (row.anchor or 'sec-' ~ row.id) }}"
+   target="_blank" rel="noopener">{{ ico('external') }} View on site</a>
+{% endblock %}
+
+{% block content %}
+<form method="post" data-guard>
+  {{ csrf() }}
+
+  <div class="split-main">
+    <div>
+      <div class="panel">
+        <div class="panel__h">
+          <div>
+            <h2>{{ type_label(row.type) }}</h2>
+            <p>{{ spec.blurb }}</p>
+          </div>
+          <div class="right">
+            {{ badge('live', 'good') if row.is_published else badge('draft', 'warn') }}
+          </div>
+        </div>
+        <div class="panel__b">
+          <div class="fg">
+            {{ render_fields(fields, row, blob) }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sticky">
+      <div class="panel">
+        <div class="panel__h"><div><h2>Section settings</h2></div></div>
+        <div class="panel__b">
+          <div class="fg">
+            <div class="fi fi--12">
+              <label for="name">Name in the admin</label>
+              <input class="in" id="name" name="name" value="{{ row.name }}" placeholder="{{ type_label(row.type) }}">
+              <span class="hint">Only you see this. It labels the row on the page builder.</span>
+            </div>
+            <div class="fi fi--12">
+              <label for="anchor">Anchor</label>
+              <div class="wrapin">
+                <span class="fix">#</span>
+                <input class="in" id="anchor" name="anchor" value="{{ row.anchor }}" placeholder="services">
+              </div>
+              <span class="hint">Lets a menu link jump here, for example <code>/#{{ row.anchor or 'services' }}</code>.</span>
+            </div>
+            <div class="fi fi--12">
+              <label class="sw">
+                <input type="checkbox" name="is_published" value="1" {{ 'checked' if row.is_published }}>
+                <span class="sw__t"></span>
+                <span class="sw__l">Published<span>Drafts are invisible to visitors.</span></span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="panel__f">
+          <button class="b b--go" type="submit">{{ ico('save') }} Save section</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel__h"><div><h2>This section</h2></div></div>
+        <div class="panel__b">
+          <dl class="kv" style="grid-template-columns:100px 1fr">
+            <dt>Type</dt><dd><code>{{ row.type }}</code></dd>
+            <dt>Page</dt><dd>{{ page.title }}</dd>
+            <dt>Position</dt><dd>{{ row.sort_order + 1 }}</dd>
+            <dt>Changed</dt><dd>{{ (row.updated_at or row.created_at) | ago }}</dd>
+          </dl>
+        </div>
+        <div class="panel__f">
+          <button class="b b--sm" type="submit" form="dupe-section">{{ ico('copy') }} Duplicate</button>
+          <button class="b b--sm b--bad" type="submit" form="kill-section">{{ ico('trash') }} Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="savebar">
+    <button class="b b--go" type="submit">{{ ico('save') }} Save section</button>
+    <span class="savebar__note">Changes go live as soon as you save, provided the section is published.</span>
+  </div>
+</form>
+
+{# Kept outside the editor form: a form cannot legally nest inside another. #}
+<form id="dupe-section" method="post" action="{{ url_for('admin.section_duplicate', section_id=row.id) }}" hidden>
+  {{ csrf() }}
+</form>
+<form id="kill-section" method="post" action="{{ url_for('admin.section_delete', section_id=row.id) }}" hidden
+      data-confirm="Delete this {{ type_label(row.type) | lower }} section?">
+  {{ csrf() }}
+</form>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% from "public/_form.html" import enquiry_form %}
+{% from "public/_icons.html" import phone %}
+<section class="sect sect--{{ d.tone or 'light' }}" id="{{ row.anchor or 'enquiry' }}" data-sec="{{ row.type }}">
+  <div class="shell enq__grid">
+    <div>
+      {% if row.eyebrow %}<span class="kicker rv rv--fade">{{ row.eyebrow }}</span>{% endif %}
+      {% if row.title %}<h2 class="h-lg rv" style="--i:1">{{ row.title }}</h2>{% endif %}
+      {% if row.subtitle %}<p class="lede rv" style="--i:2">{{ row.subtitle }}</p>{% endif %}
+      {% if row.body %}
+      <div class="prose rv" style="--i:3; margin-top:22px">
+        {% for para in row.body|paragraphs %}<p>{{ para }}</p>{% endfor %}
+      </div>
+      {% endif %}
+
+      {% if d.side_points %}
+      <ul class="points rv" style="--i:4">
+        {% for p in d.side_points %}
+        <li>
+          <span class="points__n">{{ loop.index }}</span>
+          <span>
+            <b>{{ p.title if p is mapping else p }}</b>
+            {% if p is mapping and p.text %}<span>{{ p.text }}</span>{% endif %}
+          </span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+      <p class="rv rv--fade" style="--i:5; margin-top:30px">
+        <a class="tlink" href="tel:{{ contact.phone|replace(' ','') }}">{{ phone() }} {{ contact.phone_display or contact.phone }}</a>
+      </p>
+    </div>
+
+    <div>
+      {{ enquiry_form(x.get('services', []), x.get('branches', []), x.get('slots', []),
+                      request.path, d.get('show_service', 1), d.get('show_branch', 1),
+                      d.get('show_slot', 1)) }}
+    </div>
+  </div>
+</section>

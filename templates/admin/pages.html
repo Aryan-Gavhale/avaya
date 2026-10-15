@@ -1,0 +1,52 @@
+{% extends "admin/base.html" %}
+{% from "admin/_icons.html" import ico %}
+{% from "admin/_fields.html" import csrf, badge %}
+
+{% block actions %}
+<a class="b b--go" data-fab href="{{ url_for('admin.page_new') }}">{{ ico('plus') }} New page</a>
+{% endblock %}
+
+{% block content %}
+<div class="note note--plain" style="margin-bottom:16px">
+  A page is a stack of sections. Open one to add, reorder, publish or delete its sections &mdash;
+  that is where the site is actually built.
+</div>
+
+<div class="panel">
+  <div class="panel__h">
+    <div><h2>{{ rows | length }} page{{ 's' if rows | length != 1 }}</h2>
+      <p>Drag to set the order used anywhere pages are listed.</p></div>
+  </div>
+  <div class="panel__b panel__b--flush">
+    <div class="tw">
+      <table class="t" data-reorder="{{ url_for('admin.pages_reorder') }}">
+        <thead>
+          <tr><th></th><th>Page</th><th>Address</th><th>Sections</th><th>Live</th><th class="act">Actions</th></tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr data-id="{{ row.id }}" class="{{ 'is-draft' if not row.is_published }}">
+            <td class="drag" title="Drag or use the arrow keys">{{ ico('drag') }}</td>
+            <td>
+              <a class="rowlink" href="{{ url_for('admin.page_edit', row_id=row.id) }}">{{ row.title }}</a>
+              {% if row.is_home %} {{ badge('home page', 'brand') }}{% endif %}
+              <span class="t__sub">{{ row.meta_description | shorten(70) if row.meta_description else 'No meta description' }}</span>
+            </td>
+            <td data-label="Address"><code>{{ '/' if row.is_home else '/' ~ row.slug }}</code></td>
+            <td data-label="Sections">
+              {{ row.n_sections }}
+              {% if row.n_draft %} {{ badge(row.n_draft ~ ' draft', 'warn') }}{% endif %}
+            </td>
+            <td data-label="Live">{{ badge('live', 'good') if row.is_published else badge('hidden', 'warn') }}</td>
+            <td class="act">
+              <a class="b b--sm" href="{{ url_for('admin.page_edit', row_id=row.id) }}">Open</a>
+              <a class="b b--sm" href="{{ '/' if row.is_home else '/' ~ row.slug }}" target="_blank" rel="noopener">{{ ico('external') }}</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

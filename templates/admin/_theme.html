@@ -1,0 +1,10 @@
+{# The four admin colours from Settings > Theme. admin.css mixes every other
+   green, tint and ring from these, so nothing else needs to be written here. #}
+<style>
+  :root {
+    --a-accent: {{ admin_theme.accent }};
+    --a-bg: {{ admin_theme.canvas }};
+    --a-side-c: {{ admin_theme.sidebar }};
+    --a-ink: {{ admin_theme.ink }};
+  }
+</style>

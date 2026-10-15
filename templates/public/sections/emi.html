@@ -1,0 +1,110 @@
+{% from "public/_icons.html" import arrow, tick %}
+<section class="sect sect--{{ d.tone or 'deep' }}" id="{{ row.anchor or 'sec-' ~ row.id }}" data-sec="{{ row.type }}">
+  <div class="shell emi__grid">
+    <div class="calc rv rv--scale" data-calc
+         data-plans='{{ x.get("plans", [])|tojson }}'
+         data-default="{{ x.get('default_amount', 60000)|int }}"
+         data-max="{{ x.get('max_amount', 400000)|int }}">
+      <div class="calc__row">
+        <span class="calc__lab">Treatment amount</span>
+        <input class="calc__in" type="text" inputmode="numeric" value="" data-calc-amount
+               aria-label="Treatment amount in rupees">
+      </div>
+      <input class="range" type="range" min="5000" max="{{ x.get('max_amount', 400000)|int }}"
+             step="1000" value="{{ x.get('default_amount', 60000)|int }}" data-calc-range
+             aria-label="Treatment amount slider">
+      <div class="range__ends">
+        <span>{{ 5000|money }}</span>
+        <span>{{ x.get('max_amount', 400000)|money }}</span>
+      </div>
+
+      <div class="tenures" role="group" aria-label="Choose a plan" data-calc-plans></div>
+
+      <div class="calc__out">
+        <div class="calc__emi">
+          <b data-calc-emi>&mdash;</b>
+          <span>per month for <span data-calc-tenure>&mdash;</span> months</span>
+        </div>
+        <dl class="calc__break">
+          <div data-calc-cell="down"><dt>Paid up front</dt><dd data-calc-down>&mdash;</dd></div>
+          <div data-calc-cell="extra"><dt>Interest and fees</dt><dd data-calc-extra>&mdash;</dd></div>
+          <div data-calc-cell="total"><dt>Total payable</dt><dd data-calc-total>&mdash;</dd></div>
+        </dl>
+        <p class="calc__note" data-calc-note></p>
+        <div class="calc__cta">
+          <button class="btn btn--primary" type="button" data-calc-apply>Apply for this plan{{ arrow() }}</button>
+          <a class="btn btn--line" href="tel:{{ contact.phone|replace(' ','') }}">Ask reception</a>
+        </div>
+      </div>
+
+      <form class="emiform" data-emi-form hidden action="{{ url_for('public.emi_apply') }}" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="form_token" value="{{ form_stamp() }}">
+        <div class="fgrid" style="margin-top:26px">
+          <div class="f">
+            <label for="emi-name">Your name</label>
+            <input id="emi-name" name="applicant_name" required autocomplete="name">
+          </div>
+          <div class="f">
+            <label for="emi-phone">Mobile number</label>
+            <input id="emi-phone" name="phone" required inputmode="tel" autocomplete="tel">
+          </div>
+          <div class="f">
+            <label for="emi-email">Email <span>(optional)</span></label>
+            <input id="emi-email" name="email" type="email" autocomplete="email">
+          </div>
+          <div class="f">
+            <label for="emi-service">Treatment</label>
+            <select id="emi-service" name="service_id">
+              <option value="">Not sure yet</option>
+              {% for s in x.get('services', []) %}
+              <option value="{{ s.id }}">{{ s.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="f f--full">
+            <label for="emi-msg">Anything we should know <span>(optional)</span></label>
+            <textarea id="emi-msg" name="message" rows="3" style="min-height:76px"></textarea>
+          </div>
+        </div>
+        <input type="hidden" name="treatment_amount" data-emi-amount>
+        <input type="hidden" name="plan_id" data-emi-plan>
+        <div class="form__foot">
+          <button class="btn btn--primary" type="submit">Send application</button>
+          <span class="form__fine">Applying costs nothing and does not commit you. We need a PAN and one address proof before approval.</span>
+        </div>
+        <p class="fmsg" data-emi-msg role="status" aria-live="polite"></p>
+      </form>
+
+      <div class="done" data-emi-done hidden>
+        <h3>Application received</h3>
+        <span class="done__ref" data-emi-ref></span>
+        <p>We will ring you to confirm the plan and collect the two documents. Quote that reference if you call us first.</p>
+      </div>
+    </div>
+
+    <div class="emi__side">
+      {% if row.eyebrow %}<span class="kicker rv rv--fade">{{ row.eyebrow }}</span>{% endif %}
+      {% if row.title %}<h2 class="h-lg rv" style="--i:1">{{ row.title }}</h2>{% endif %}
+      {% if row.subtitle %}<p class="lede rv" style="--i:2">{{ row.subtitle }}</p>{% endif %}
+      {% if d.points %}
+      <ul class="points rv" style="--i:3">
+        {% for p in d.points %}
+        <li>
+          <span class="points__n">{{ tick() }}</span>
+          <span>
+            <b>{{ p.title if p is mapping else p }}</b>
+            {% if p is mapping and p.text %}<span>{{ p.text }}</span>{% endif %}
+          </span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      {% if row.body %}
+      <div class="prose rv" style="--i:4; margin-top:26px">
+        {% for para in row.body|paragraphs %}<p style="color:inherit; opacity:.78">{{ para }}</p>{% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</section>

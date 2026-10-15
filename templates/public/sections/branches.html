@@ -1,0 +1,58 @@
+{% from "public/_icons.html" import pin, phone, arrow %}
+<section class="sect sect--{{ d.tone or 'canvas' }}" id="{{ row.anchor or 'sec-' ~ row.id }}" data-sec="{{ row.type }}">
+  <div class="shell">
+    <div class="head2 rv rv--fade">
+      {% if row.eyebrow %}<span class="kicker">{{ row.eyebrow }}</span>{% endif %}
+      {% if row.title %}<h2 class="h-lg">{{ row.title }}</h2>{% endif %}
+      {% if row.subtitle %}<p class="lede">{{ row.subtitle }}</p>{% endif %}
+    </div>
+
+    <div class="branches">
+      {% for item in x.get('branches', []) %}
+      {% set b = item.row %}
+      <article class="branch rv" style="--i:{{ loop.index0 }}">
+        {% if b.media_id %}
+        <div class="branch__media">
+          <img src="{{ media_url(b.media_id, 'medium') }}" alt="{{ media_alt(b.media_id) }}" loading="lazy" width="900" height="500">
+        </div>
+        {% endif %}
+        <div class="branch__body">
+          <div class="branch__top">
+            <div>
+              <h3 class="h-md">{{ b.name }}</h3>
+              <p class="branch__addr">{{ b.address }}{% if b.city %}, {{ b.city }}{% endif %}{% if b.pincode %} {{ b.pincode }}{% endif %}</p>
+            </div>
+            <span class="pill {{ 'pill--open' if item.state.open_now else 'pill--shut' }}">
+              <span class="dot {{ 'dot--on' if item.state.open_now else 'dot--off' }}"></span>
+              {{ item.state.label }}
+            </span>
+          </div>
+
+          <div class="branch__rows">
+            <span>{{ phone() }} <a href="tel:{{ b.phone|replace(' ','') }}">{{ b.phone }}</a></span>
+            {% if b.email %}<span><a href="mailto:{{ b.email }}">{{ b.email }}</a></span>{% endif %}
+          </div>
+
+          <div class="branch__hours">
+            {% for line in item.hours %}
+            <span class="{{ 'is-today' if line.is_today }}"><i>{{ line.days }}</i>{{ line.text }}</span>
+            {% endfor %}
+          </div>
+
+          {% if b.map_embed %}<p class="branch__note">{{ b.map_embed }}</p>{% endif %}
+
+          <div class="branch__cta">
+            {% if b.directions_url and d.get('show_map', 1) %}
+            <a class="btn btn--line btn--sm" href="{{ b.directions_url }}" target="_blank" rel="noopener">{{ pin() }} Directions</a>
+            {% endif %}
+            {% if b.whatsapp %}
+            <a class="btn btn--ghost btn--sm" href="https://wa.me/{{ b.whatsapp }}" target="_blank" rel="noopener">WhatsApp this clinic</a>
+            {% endif %}
+            <a class="btn btn--primary btn--sm" href="#enquiry">Book here{{ arrow() }}</a>
+          </div>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>

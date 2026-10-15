@@ -1,0 +1,16 @@
+{% extends "public/base.html" %}
+{% from "public/_icons.html" import arrow %}
+{% block content %}
+<section class="err">
+  <div class="shell thanks__in">
+    <span class="err__code">404</span>
+    <h1 class="h-lg">That page has moved out</h1>
+    <p class="lede">The link is broken or the page was unpublished. Everything we offer is on the
+       treatments page, and reception can point you at the rest.</p>
+    <div class="hero__cta">
+      <a class="btn btn--primary btn--lg" href="/">Back to the home page{{ arrow() }}</a>
+      <a class="btn btn--line btn--lg" href="/treatments">See treatments</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

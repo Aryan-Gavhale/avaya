@@ -1,0 +1,152 @@
+{% extends "admin/base.html" %}
+{% from "admin/_icons.html" import ico %}
+{% from "admin/_fields.html" import csrf, badge %}
+{% from "admin/_list.html" import filters_pop, columns_pop, chip %}
+
+{% block actions %}
+<a class="b" href="{{ url_for('admin.emi_ledger_export', what='payments') }}">{{ ico('download') }} Payments CSV</a>
+<a class="b" href="{{ url_for('admin.emi_ledger_export', what='outstanding') }}">{{ ico('download') }} Outstanding CSV</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="stats">
+  <div class="sc sc--good">
+    <span class="sc__l">Collected to date</span>
+    <span class="sc__n">{{ summary.collected | money }}</span>
+    <span class="sc__d">Every receipt marked paid</span>
+  </div>
+  <div class="sc">
+    <span class="sc__l">This month</span>
+    <span class="sc__n">{{ summary.month | money }}</span>
+    <span class="sc__d">{{ today.strftime('%B %Y') }}</span>
+  </div>
+  <div class="sc">
+    <span class="sc__l">Outstanding</span>
+    <span class="sc__n">{{ summary.outstanding | money }}</span>
+    <span class="sc__d">{{ upcoming | length }} due in the next 45 days</span>
+  </div>
+  <div class="sc {{ 'sc--bad' if summary.overdue }}">
+    <span class="sc__l">Overdue</span>
+    <span class="sc__n">{{ summary.overdue | money }}</span>
+    <span class="sc__d">{{ overdue | length }} instalment{{ 's' if overdue | length != 1 }} late</span>
+  </div>
+</div>
+
+<div class="panel">
+  <form class="ltb" method="get" data-pops>
+    <input type="hidden" name="view" value="payments">
+    <nav class="tabs" aria-label="Ledger view">
+      <a class="tab {{ 'is-on' if view == 'payments' }}" href="{{ url_for('admin.emi_ledger') }}">Payments</a>
+      <a class="tab {{ 'is-on' if view == 'overdue' }}" href="{{ url_for('admin.emi_ledger', view='overdue') }}">
+        Overdue <b>{{ overdue | length }}</b></a>
+      <a class="tab {{ 'is-on' if view == 'upcoming' }}" href="{{ url_for('admin.emi_ledger', view='upcoming') }}">
+        Coming up <b>{{ upcoming | length }}</b></a>
+    </nav>
+    {% if view == 'payments' %}
+    <div class="ltb__tools">
+      {% call filters_pop(1 if month else 0, url_for('admin.emi_ledger')) %}
+        <label>Month received
+          <select class="in" name="month">
+            <option value="">Every month</option>
+            {% for m in months %}<option value="{{ m.m }}" {{ 'selected' if month == m.m }}>{{ m.m }}</option>{% endfor %}
+          </select></label>
+      {% endcall %}
+      {{ columns_pop('ledger-payments') }}
+    </div>
+    {% endif %}
+  </form>
+  {% if view == 'payments' and month %}
+  <div class="chips">{{ chip('admin.emi_ledger', {'month': month}, 'month', 'Month', month) }}</div>
+  {% endif %}
+
+  <div class="panel__b panel__b--flush">
+    {% if view == 'overdue' %}
+      {% if overdue %}
+      <div class="tw">
+        <table class="t">
+          <thead><tr><th>Patient</th><th>Instalment</th><th>Due</th><th>Late by</th>
+                     <th class="num">Amount</th><th>Application</th><th class="act"></th></tr></thead>
+          <tbody>
+            {% for i in overdue %}
+            <tr>
+              <td><a class="rowlink" href="{{ url_for('admin.emi_application_detail', app_id=i.application_id) }}">{{ i.applicant_name }}</a>
+                <span class="t__sub">{{ i.phone or i.ref }}</span></td>
+              <td data-label="Instalment">#{{ i.seq }}</td>
+              <td data-label="Due">{{ i.due_date | date_fmt }}</td>
+              <td data-label="Late by">{{ badge(i.days_late ~ ' days', 'bad' if i.days_late > 30 else 'warn') }}</td>
+              <td class="num" data-label="Amount">{{ i.amount | money }}</td>
+              <td data-label="Application">{{ badge(i.app_status | replace('_', ' '), '') }}</td>
+              <td class="act">
+                {% if i.phone %}
+                <a class="b b--sm" href="tel:{{ i.phone | replace(' ', '') }}">{{ ico('phone') }}</a>
+                <a class="b b--sm" target="_blank" rel="noopener"
+                   href="https://wa.me/{{ i.phone | replace(' ', '') | replace('+', '') }}?text={{ ('Hello ' ~ i.applicant_name ~ ', a gentle reminder that instalment ' ~ i.seq ~ ' of your treatment plan with ' ~ brand.name ~ ' was due on ' ~ i.due_date ~ '.') | urlencode }}">Remind</a>
+                {% endif %}
+                <a class="b b--sm b--go" href="{{ url_for('admin.emi_application_detail', app_id=i.application_id) }}#record">Take payment</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty"><h3>Nothing is late</h3><p>Every scheduled instalment is either paid or still in the future.</p></div>
+      {% endif %}
+
+    {% elif view == 'upcoming' %}
+      {% if upcoming %}
+      <div class="tw">
+        <table class="t">
+          <thead><tr><th>Patient</th><th>Instalment</th><th>Due</th><th class="num">Amount</th><th class="act"></th></tr></thead>
+          <tbody>
+            {% for i in upcoming %}
+            <tr>
+              <td><a class="rowlink" href="{{ url_for('admin.emi_application_detail', app_id=i.application_id) }}">{{ i.applicant_name }}</a>
+                <span class="t__sub">{{ i.ref }}</span></td>
+              <td data-label="Instalment">#{{ i.seq }}</td>
+              <td data-label="Due">{{ i.due_date | date_fmt }}</td>
+              <td class="num" data-label="Amount">{{ i.amount | money }}</td>
+              <td class="act"><a class="b b--sm" href="{{ url_for('admin.emi_application_detail', app_id=i.application_id) }}#record">Take payment</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty"><h3>Nothing due in the next 45 days</h3><p>Approve an application to generate its schedule.</p></div>
+      {% endif %}
+
+    {% else %}
+      {% if payments %}
+      <div class="tw">
+        <table class="t" data-cols="ledger-payments">
+          <thead><tr><th data-col="receipt" data-lock>Receipt</th><th data-col="received">Received</th>
+                     <th data-col="payer">Payer</th><th data-col="application">Application</th>
+                     <th data-col="method">Method</th><th class="num" data-col="amount">Amount</th>
+                     <th data-col="by">Recorded by</th><th class="act" data-col="act" data-lock></th></tr></thead>
+          <tbody>
+            {% for p in payments %}
+            <tr class="{{ 'is-draft' if p.status != 'paid' }}">
+              <td><a class="rowlink" href="{{ url_for('admin.emi_receipt', payment_id=p.id) }}"><code>{{ p.receipt_no }}</code></a>
+                {% if p.status != 'paid' %} {{ badge(p.status, 'bad') }}{% endif %}</td>
+              <td data-label="Received">{{ p.paid_at | date_fmt }}</td>
+              <td data-label="Payer">{{ p.payer_name }}</td>
+              <td data-label="Application">{% if p.application_id %}<a href="{{ url_for('admin.emi_application_detail', app_id=p.application_id) }}">{{ p.app_ref }}</a>{% else %}&mdash;{% endif %}</td>
+              <td data-label="Method">{{ p.method }}{% if p.provider_ref %}<span class="t__sub">{{ p.provider_ref }}</span>{% endif %}</td>
+              <td class="num" data-label="Amount">{{ p.amount | money }}</td>
+              <td class="t__sub" data-label="Recorded by">{{ p.by_name or 'System' }}</td>
+              <td class="act"><a class="b b--sm" href="{{ url_for('admin.emi_receipt', payment_id=p.id) }}">Receipt</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty"><h3>No payments recorded{% if month %} in {{ month }}{% endif %}</h3>
+        <p>Record one against an instalment on any application.</p></div>
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

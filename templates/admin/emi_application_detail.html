@@ -1,0 +1,541 @@
+{% extends "admin/base.html" %}
+{% from "admin/_icons.html" import ico %}
+{% from "admin/_fields.html" import csrf, badge %}
+
+{% set st = row.status %}
+{% set dues = schedule | selectattr('status', 'equalto', 'due') | list %}
+{% set next_due = dues[0] if dues else None %}
+{% set has_paid = (totals.paid or 0) > 0 or (payments | selectattr('status', 'equalto', 'paid') | list | length) > 0 %}
+{% set can_pay = st in ('approved', 'active', 'defaulted') or (st == 'completed' and dues) %}
+{% set PRIMARY = {'submitted': 'under_review', 'under_review': 'approved', 'rejected': 'under_review',
+                  'cancelled': 'submitted', 'defaulted': 'active'} %}
+{% set primary_move = PRIMARY.get(st) if PRIMARY.get(st) in next_states else None %}
+{% set MOVE_LABEL = {'under_review': 'Start the review', 'approved': 'Approve', 'rejected': 'Reject',
+                     'cancelled': 'Cancel the application', 'active': 'Mark active again',
+                     'completed': 'Mark as completed', 'defaulted': 'Mark as defaulted',
+                     'submitted': 'Reopen'} %}
+{% set MOVE_ASK = {
+  'under_review': 'Move this application to under review?',
+  'approved': 'Approve the application? A ' ~ row.tenure_months ~ '-instalment schedule is generated from ' ~ (row.start_date | date_fmt) ~ '.',
+  'rejected': 'Reject this application? It can be reopened for review later.',
+  'cancelled': 'Cancel this application? The record and any receipts are kept.',
+  'active': 'Put this application back to active?',
+  'completed': 'Mark the application as completed? Any instalments still due stay on record.',
+  'defaulted': 'Mark the application as defaulted? It shows as overdue until it is settled.',
+  'submitted': 'Reopen this application as submitted?'} %}
+
+{% macro move(status, cls='b', label=None) %}
+<form method="post" action="{{ url_for('admin.emi_application_update', app_id=row.id) }}"
+      data-confirm="{{ MOVE_ASK.get(status, 'Change the status?') }}">
+  {{ csrf() }}<input type="hidden" name="status" value="{{ status }}">
+  <button class="{{ cls }}" type="submit">{{ caller() if caller else (label or MOVE_LABEL.get(status, labels.get(status, status))) }}</button>
+</form>
+{% endmacro %}
+
+{% block crumb %}
+<div class="top__crumb">
+  <a href="{{ url_for('admin.emi_applications') }}">EMI applications</a> &rsaquo; {{ row.ref }}
+  {% if row.enquiry_ref %}
+  &middot; from enquiry <a href="{{ url_for('admin.enquiry_detail', row_id=row.enquiry_row) }}">{{ row.enquiry_ref }}</a>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block actions %}
+{% if row.phone %}<a class="b" href="tel:{{ row.phone | replace(' ', '') }}">{{ ico('phone') }} Call</a>{% endif %}
+<details class="pop menu" data-pop>
+  <summary class="b" aria-label="More actions">{{ ico('more') }}</summary>
+  <div class="pop__p">
+    {% for s in next_states if s != primary_move %}
+      {% call move(s, 'menu__i' ~ (' menu__i--bad' if s in ('rejected', 'cancelled', 'defaulted'))) %}
+        {{ ico('flag') }} {{ MOVE_LABEL.get(s, labels.get(s, s)) }}
+      {% endcall %}
+    {% endfor %}
+    {% if next_states | reject('equalto', primary_move) | list %}<div class="menu__sep"></div>{% endif %}
+    <a class="menu__i" href="{{ url_for('admin.emi_ledger') }}">{{ ico('receipt') }} Open the ledger</a>
+    {% if not has_paid %}
+    <button class="menu__i" type="button" data-dlg-open="plan-dlg">{{ ico('wallet') }} Change plan or amount</button>
+    {% endif %}
+    <button class="menu__i" type="submit" form="rebuild-schedule" {{ 'disabled' if has_paid }}
+            title="{{ 'Locked once a payment is recorded' if has_paid }}">{{ ico('refresh') }} Rebuild schedule</button>
+    {% if can('emi_admin') %}
+    <div class="menu__sep"></div>
+    <button class="menu__i menu__i--bad" type="submit" form="kill-app" {{ 'disabled' if has_paid }}>
+      {{ ico('trash') }} Delete application</button>
+    {% endif %}
+  </div>
+</details>
+{% endblock %}
+
+{% block content %}
+
+{# ── who, where in the journey, and the one thing to do next ─────────────── #}
+{% set PATH = ['submitted', 'under_review', 'approved', 'active', 'completed'] %}
+{% set OFF_AFTER = {'rejected': 'under_review', 'cancelled': 'submitted', 'defaulted': 'active'} %}
+<section class="hero">
+  <div class="hero__top">
+    <span class="hero__av" aria-hidden="true">{{ (row.applicant_name.split() | map('first') | join | upper)[:2] }}</span>
+    <div class="hero__t">
+      <h2>{{ row.applicant_name }}</h2>
+      <p>{{ row.ref }} &middot; {{ row.treatment_label or row.service_name or 'Treatment not listed' }}
+         &middot; {{ row.plan_label }}</p>
+    </div>
+    <div class="hero__acts">{{ badge(labels.get(st, st), tone.get(st, '')) }}</div>
+  </div>
+
+  <ol class="journey" aria-label="Application progress">
+    {% if st in OFF_AFTER %}
+      {% set stop = PATH.index(OFF_AFTER[st]) %}
+      {% for p in PATH[:stop + 1] %}<li class="is-done">{{ labels[p] }}</li>{% endfor %}
+      <li class="is-off" aria-current="step">{{ labels[st] }}</li>
+      {% for p in PATH[stop + 1:] %}<li>{{ labels[p] }}</li>{% endfor %}
+    {% else %}
+      {% set at = PATH.index(st) if st in PATH else 0 %}
+      {% for p in PATH %}
+      <li class="{{ 'is-done' if loop.index0 < at or (st == 'completed' and p == 'completed') else ('is-on' if loop.index0 == at) }}"
+          {{ 'aria-current="step"' | safe if loop.index0 == at }}>{{ labels[p] }}</li>
+      {% endfor %}
+    {% endif %}
+  </ol>
+
+  {% if st == 'completed' %}
+  <div class="hero__next hero__next--done">
+    <p><b>Fully paid.</b> {{ totals.collected | money }} collected over {{ row.tenure_months }} months. Nothing left to do.</p>
+  </div>
+  {% elif st == 'rejected' %}
+  <div class="hero__next hero__next--bad">
+    <p><b>Rejected.</b> Reopen it if the patient brings the missing paperwork.</p>
+    {% if primary_move %}{{ move(primary_move, 'b b--go', 'Reopen for review') }}{% endif %}
+  </div>
+  {% elif st == 'cancelled' %}
+  <div class="hero__next hero__next--done">
+    <p><b>Cancelled.</b> The record is kept. Reopen it to start again with the same details.</p>
+    {% if primary_move %}{{ move(primary_move, 'b', 'Reopen') }}{% endif %}
+  </div>
+  {% elif st == 'submitted' %}
+  <div class="hero__next">
+    <p><b>New application.</b> Check the patient's ID and income proof, then start the review.</p>
+    {% if primary_move %}{{ move(primary_move, 'b b--go') }}{% endif %}
+  </div>
+  {% elif st == 'under_review' %}
+  <div class="hero__next">
+    {% if primary_move %}
+    <p><b>Ready to sign off?</b> Approving generates {{ row.tenure_months }} instalments of
+      {{ row.monthly_emi | money }}, the first on {{ row.start_date | date_fmt }}.</p>
+    {{ move(primary_move, 'b b--go', 'Approve and build the schedule') }}
+    {% else %}
+    <p><b>Waiting for a manager.</b> An administrator has to approve or reject this application.</p>
+    {% endif %}
+  </div>
+  {% elif can_pay %}
+  <div class="hero__next {{ 'hero__next--bad' if totals.overdue_count or st == 'defaulted' }}">
+    {% if st == 'approved' and not has_paid %}
+    <p><b>Approved.</b> Take the first payment{% if next_due %} of {{ next_due.amount | money }}, due {{ next_due.due_date | date_fmt }}{% endif %},
+      and the application goes active.</p>
+    {% elif totals.overdue_count %}
+    <p><b>{{ totals.overdue_count }} instalment{{ 's' if totals.overdue_count != 1 }} overdue</b>,
+      {{ totals.overdue | money }} in total. Call the patient, then record what they pay.</p>
+    {% elif next_due %}
+    <p><b>Next: instalment {{ next_due.seq }} of {{ schedule | length }}</b>, {{ next_due.amount | money }}
+      due {{ next_due.due_date | date_fmt }}.</p>
+    {% else %}
+    <p><b>No schedule yet.</b> Rebuild it from the More menu, or record a part payment.</p>
+    {% endif %}
+    <button class="b b--go" type="button" data-dlg-open="pay-dlg">{{ ico('receipt') }} Record a payment</button>
+  </div>
+  {% endif %}
+</section>
+
+<nav class="dtabs" role="tablist" aria-label="Sections">
+  <a href="#overview" data-dtab="overview" class="is-on">Overview</a>
+  <a href="#schedule" data-dtab="schedule">Schedule <b>{{ schedule | length }}</b></a>
+  <a href="#payments" data-dtab="payments">Payments <b>{{ payments | length }}</b></a>
+  <a href="#notes" data-dtab="notes">Notes and KYC</a>
+</nav>
+
+{# ── overview ─────────────────────────────────────────────────────────────── #}
+<section class="dpane is-on" id="pane-overview" data-dpane="overview">
+  <div class="figs">
+    <div class="sc">
+      <span class="sc__l">Monthly instalment</span>
+      <span class="sc__n">{{ row.monthly_emi | money }}</span>
+      <span class="sc__d">{{ row.tenure_months }} months</span>
+    </div>
+    <div class="sc sc--good">
+      <span class="sc__l">Collected</span>
+      <span class="sc__n">{{ totals.collected | money }}</span>
+      <span class="sc__d">of {{ row.total_payable | money }} payable</span>
+    </div>
+    <div class="sc">
+      <span class="sc__l">Outstanding</span>
+      <span class="sc__n">{{ totals.outstanding | money }}</span>
+      <span class="sc__d">{{ dues | length }} instalment{{ 's' if dues | length != 1 }} to go</span>
+    </div>
+    <div class="sc {{ 'sc--bad' if totals.overdue }}">
+      <span class="sc__l">Overdue</span>
+      <span class="sc__n">{{ totals.overdue | money }}</span>
+      <span class="sc__d">{{ totals.overdue_count or 0 }} past the due date</span>
+    </div>
+  </div>
+
+  <div class="g2">
+    <div class="panel">
+      <div class="panel__h"><div><h2>The plan</h2>
+        <p>{% if has_paid %}Locked now that money has been received.{% else %}Can still be changed until the first payment.{% endif %}</p></div>
+        {% if not has_paid %}
+        <div class="right"><button class="b b--sm" type="button" data-dlg-open="plan-dlg">Change</button></div>
+        {% endif %}
+      </div>
+      <div class="panel__b">
+        <dl class="review">
+          <dt>Treatment cost</dt><dd>{{ row.treatment_amount | money }}</dd>
+          <dt>Paid up front</dt><dd>{{ row.downpayment | money }}</dd>
+          <dt>Financed</dt><dd>{{ row.financed | money }}</dd>
+          <dt>Interest</dt><dd>{{ row.interest_rate ~ '% a year' if row.interest_rate else 'None' }}</dd>
+          <dt>Processing fee</dt><dd>{{ row.processing_fee | money }}</dd>
+          <dt>Monthly</dt><dd class="is-big">{{ row.monthly_emi | money }}</dd>
+          <dt>Total payable</dt><dd>{{ row.total_payable | money }}</dd>
+        </dl>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel__h"><div><h2>The patient</h2></div></div>
+      <div class="panel__b">
+        <dl class="review">
+          <dt>Phone</dt><dd>{% if row.phone %}<a href="tel:{{ row.phone | replace(' ', '') }}">{{ row.phone }}</a>{% else %}&mdash;{% endif %}</dd>
+          <dt>Email</dt><dd>{{ row.email or '—' }}</dd>
+          <dt>Treatment</dt><dd>{{ row.treatment_label or row.service_name or 'Not listed' }}</dd>
+          <dt>First instalment</dt><dd>{{ row.start_date | date_fmt if row.start_date else '—' }}</dd>
+          <dt>Raised</dt><dd>{{ row.created_at | datetime_fmt }}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+</section>
+
+{# ── schedule ─────────────────────────────────────────────────────────────── #}
+<section class="dpane" id="pane-schedule" data-dpane="schedule">
+  <div class="panel">
+    <div class="panel__b panel__b--flush">
+      {% if schedule %}
+      <div class="tw">
+        <table class="t">
+          <thead><tr><th>Instalment</th><th>Due</th><th class="num">Amount</th><th>Status</th><th>Receipt</th><th class="act"></th></tr></thead>
+          <tbody>
+            {% for i in schedule %}
+            {% set late = i.status == 'due' and i.due_date < today.isoformat() %}
+            <tr>
+              <td class="t__title"><span class="onlyphone">Instalment </span>{{ i.seq }}</td>
+              <td data-label="Due">{{ i.due_date | date_fmt }}
+                {% if late %}{{ badge('overdue', 'bad') }}{% endif %}</td>
+              <td class="num" data-label="Amount">{{ i.amount | money }}</td>
+              <td data-label="Status">
+                {% if i.status == 'paid' %}{{ badge('paid', 'good') }}
+                {% elif i.status == 'waived' %}{{ badge('waived', '') }}
+                {% else %}{{ badge('due', 'warn' if late else 'info') }}{% endif %}
+              </td>
+              <td data-label="Receipt">
+                {% if i.receipt_no %}<code>{{ i.receipt_no }}</code>
+                  {% if i.paid_at %}<span class="t__sub">{{ i.paid_at | date_fmt }}</span>{% endif %}
+                {% else %}<span class="hint">&mdash;</span>{% endif %}
+              </td>
+              <td class="act">
+                {% if i.status == 'due' and can_pay %}
+                <button class="b b--sm {{ 'b--go' if next_due and i.id == next_due.id }}" type="button"
+                        data-pay="{{ i.id }}" data-amount="{{ i.amount | round | int }}" data-seq="{{ i.seq }}">
+                  Record payment
+                </button>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty">
+        <h3>No instalments yet</h3>
+        <p>The schedule is generated when the application is approved.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+{# ── payments ─────────────────────────────────────────────────────────────── #}
+<section class="dpane" id="pane-payments" data-dpane="payments">
+  <div class="panel">
+    <div class="panel__b panel__b--flush">
+      {% if payments %}
+      <div class="tw">
+        <table class="t">
+          <thead><tr><th>Receipt</th><th>Received</th><th class="num">Amount</th><th>Method</th><th>Recorded by</th><th class="act"></th></tr></thead>
+          <tbody>
+            {% for p in payments %}
+            <tr>
+              <td><a class="rowlink" href="{{ url_for('admin.emi_receipt', payment_id=p.id) }}"><code>{{ p.receipt_no }}</code></a>
+                {% if p.status != 'paid' %} {{ badge(p.status, 'bad') }}{% endif %}</td>
+              <td data-label="Received">{{ p.paid_at | date_fmt }}</td>
+              <td class="num" data-label="Amount">{{ p.amount | money }}</td>
+              <td data-label="Method">{{ p.method }}{% if p.provider_ref %}<span class="t__sub">{{ p.provider_ref }}</span>{% endif %}</td>
+              <td class="t__sub" data-label="Recorded by">{{ p.by_name or 'System' }}</td>
+              <td class="act">
+                <a class="b b--sm" href="{{ url_for('admin.emi_receipt', payment_id=p.id) }}">Receipt</a>
+                {% if p.status == 'paid' and can('emi_admin') %}
+                <button class="b b--sm b--bad" type="submit" form="void-{{ p.id }}">Void</button>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty"><h3>Nothing collected yet</h3>
+        <p>The first payment moves an approved application to active.</p>
+        {% if can_pay %}<button class="b b--go" type="button" data-dlg-open="pay-dlg">{{ ico('receipt') }} Record a payment</button>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+{# ── notes ────────────────────────────────────────────────────────────────── #}
+<section class="dpane" id="pane-notes" data-dpane="notes">
+  <form class="panel" method="post" action="{{ url_for('admin.emi_application_update', app_id=row.id) }}" data-guard>
+    {{ csrf() }}
+    <div class="panel__b">
+      <div class="fg">
+        <div class="fi fi--12">
+          <label for="kyc_notes">KYC</label>
+          <textarea class="in" id="kyc_notes" name="kyc_notes" rows="3"
+                    placeholder="Which documents were seen, and by whom.">{{ row.kyc_notes }}</textarea>
+        </div>
+        <div class="fi fi--12">
+          <label for="notes">Internal notes</label>
+          <textarea class="in" id="notes" name="notes" rows="4">{{ row.notes }}</textarea>
+        </div>
+      </div>
+    </div>
+    <div class="panel__f"><button class="b b--go" type="submit">{{ ico('save') }} Save notes</button></div>
+  </form>
+</section>
+
+{# ── record a payment: pick the instalment, take the money, confirm ──────── #}
+{% if can_pay %}
+<dialog class="dlg" id="pay-dlg" aria-labelledby="pay-dlg-h">
+  <form method="post" action="{{ url_for('admin.emi_record_payment') }}" data-wiz novalidate>
+    {{ csrf() }}
+    <input type="hidden" name="application_id" value="{{ row.id }}">
+    <div class="dlg__h"><h2 id="pay-dlg-h">Record a payment</h2>
+      <button class="b b--sm b--ghost" type="button" data-dlg-close aria-label="Close">&times;</button></div>
+    <div class="dlg__b">
+      <ol class="wiz__steps" style="--n:3">
+        <li class="wiz__step is-on" data-wiz-step><b>Instalment</b></li>
+        <li class="wiz__step" data-wiz-step><b>Payment</b></li>
+        <li class="wiz__step" data-wiz-step><b>Confirm</b></li>
+      </ol>
+
+      <div class="wiz__pane is-on" data-wiz-pane>
+        <p class="wiz__lead">Which instalment does this settle?</p>
+        {% macro inst_row(i, first) %}
+          <label><input type="radio" name="installment_id" value="{{ i.id }}" required
+                        data-amount="{{ i.amount | round | int }}" data-label="Instalment {{ i.seq }}, due {{ i.due_date | date_fmt }}"
+                        {{ 'checked' if first }}>
+            <span>Instalment {{ i.seq }}<span class="t__sub">due {{ i.due_date | date_fmt }}{{ ' · overdue' if i.due_date < today.isoformat() }}</span></span>
+            <span class="num">{{ i.amount | money }}</span></label>
+        {% endmacro %}
+        <div class="inst">
+          {% for i in dues[:4] %}{{ inst_row(i, loop.first) }}{% endfor %}
+          {% if dues | length > 4 %}
+          <details class="inst__more">
+            <summary>{{ dues | length - 4 }} later instalment{{ 's' if dues | length - 4 != 1 }}</summary>
+            <div class="inst">{% for i in dues[4:] %}{{ inst_row(i, False) }}{% endfor %}</div>
+          </details>
+          {% endif %}
+          <label><input type="radio" name="installment_id" value="" required data-label="Part payment, not tied to an instalment"
+                        {{ 'checked' if not dues }}>
+            <span>A part payment<span class="t__sub">Not tied to any one instalment</span></span></label>
+        </div>
+      </div>
+
+      <div class="wiz__pane" data-wiz-pane>
+        <p class="wiz__lead">How much was received, and how?</p>
+        <div class="fg">
+          <div class="fi fi--6">
+            <label for="pay_amount">Amount</label>
+            <div class="wrapin"><span class="fix">&#8377;</span>
+              <input class="in" id="pay_amount" name="amount" type="number" min="1" step="1" required inputmode="numeric"
+                     data-money value="{{ (dues[0].amount | round | int) if dues else '' }}"></div>
+          </div>
+          <div class="fi fi--6">
+            <label for="paid_at">Received on</label>
+            <input class="in" id="paid_at" name="paid_at" type="date" required value="{{ today.isoformat() }}"
+                   max="{{ today.isoformat() }}">
+          </div>
+          <div class="fi fi--12">
+            <label for="method">Method</label>
+            <select class="in" id="method" name="method">
+              {% for value, label in methods %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="fi fi--6" data-noncash>
+            <label for="provider">Provider</label>
+            <input class="in" id="provider" name="provider" placeholder="PhonePe, HDFC, Razorpay">
+          </div>
+          <div class="fi fi--6" data-noncash>
+            <label for="provider_ref">Reference</label>
+            <input class="in" id="provider_ref" name="provider_ref" placeholder="UTR or transaction id">
+          </div>
+          <div class="fi fi--12">
+            <label for="pay_notes">Note</label>
+            <input class="in" id="pay_notes" name="notes" placeholder="Optional">
+          </div>
+        </div>
+      </div>
+
+      <div class="wiz__pane" data-wiz-pane>
+        <p class="wiz__lead">A receipt is produced as soon as you confirm.</p>
+        <dl class="review">
+          <dt>Patient</dt><dd>{{ row.applicant_name }}</dd>
+          <dt>Against</dt><dd data-rv="installment_id">&mdash;</dd>
+          <dt>Method</dt><dd data-rv="method">&mdash;</dd>
+          <dt>Reference</dt><dd data-rv="provider_ref">&mdash;</dd>
+          <dt>Received on</dt><dd data-rv="paid_at">&mdash;</dd>
+          <dt>Amount</dt><dd class="is-big" data-rv="amount">&mdash;</dd>
+        </dl>
+      </div>
+    </div>
+    <div class="dlg__f wiz__nav">
+      <button class="b b--ghost" type="button" data-wiz-back>{{ ico('back') }} Back</button>
+      <span class="wiz__why" data-wiz-why aria-live="polite"></span>
+      <div class="right">
+        <button class="b b--go" type="button" data-wiz-next>Continue {{ ico('arrow') }}</button>
+        <button class="b b--go" type="submit" data-wiz-submit>{{ ico('receipt') }} Record and print receipt</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+{% endif %}
+
+{# ── change plan or amount, only while nothing has been paid ──────────────── #}
+{% if not has_paid %}
+<dialog class="dlg" id="plan-dlg" aria-labelledby="plan-dlg-h">
+  <form method="post" action="{{ url_for('admin.emi_application_update', app_id=row.id) }}" data-emi-quote
+        data-confirm="Save the new plan? The instalment schedule is rebuilt to match.">
+    {{ csrf() }}
+    <div class="dlg__h"><h2 id="plan-dlg-h">Change plan or amount</h2>
+      <button class="b b--sm b--ghost" type="button" data-dlg-close aria-label="Close">&times;</button></div>
+    <div class="dlg__b">
+      <div class="fg">
+        <div class="fi fi--6">
+          <label for="treatment_amount">Treatment cost</label>
+          <div class="wrapin"><span class="fix">&#8377;</span>
+            <input class="in" id="treatment_amount" name="treatment_amount" type="number" min="500" step="1"
+                   value="{{ row.treatment_amount | round | int }}"></div>
+        </div>
+        <div class="fi fi--6">
+          <label for="start_date">First instalment</label>
+          <input class="in" id="start_date" name="start_date" type="date" value="{{ row.start_date }}">
+        </div>
+        <div class="fi fi--12">
+          <label for="plan_id">Plan</label>
+          <select class="in" id="plan_id" name="plan_id">
+            {% for p in plans %}
+            <option value="{{ p.id }}" {{ 'selected' if p.id == row.plan_id }} data-name="{{ p.name }}"
+                    data-tenure="{{ p.tenure_months }}" data-rate="{{ p.interest_rate }}"
+                    data-fee="{{ p.processing_fee_pct }}" data-down="{{ p.downpayment_pct }}">
+              {{ p.name }} &middot; {{ p.tenure_months }} months
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="fi fi--12"><div class="note note--plain" data-emi-out></div></div>
+      </div>
+    </div>
+    <div class="dlg__f">
+      <div class="right">
+        <button class="b b--ghost" type="button" data-dlg-close>Cancel</button>
+        <button class="b b--go" type="submit">{{ ico('save') }} Save the plan</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+{% endif %}
+
+{# Forms kept outside the menus above; a form cannot nest inside a form. #}
+<form id="rebuild-schedule" method="post" hidden
+      action="{{ url_for('admin.emi_build_schedule', app_id=row.id) }}"
+      data-confirm="Rebuild the instalment schedule from the current plan and start date?">
+  {{ csrf() }}
+</form>
+{% if can('emi_admin') %}
+<form id="kill-app" method="post" hidden
+      action="{{ url_for('admin.emi_application_delete', app_id=row.id) }}"
+      data-confirm="Delete this application? Only possible while no payments exist.">
+  {{ csrf() }}
+</form>
+{% endif %}
+{% for p in payments if can('emi_admin') %}
+<form id="void-{{ p.id }}" method="post" hidden
+      action="{{ url_for('admin.emi_void_payment', payment_id=p.id) }}"
+      data-confirm="Void {{ p.receipt_no }} and reopen its instalment?">
+  {{ csrf() }}
+</form>
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce() }}">
+  /* Tabs switch panes in place and keep their place in the URL hash, so a
+     reload or a shared link lands on the same section. */
+  const tabs = [...document.querySelectorAll('[data-dtab]')];
+  const showTab = (name) => {
+    if (!tabs.some((t) => t.dataset.dtab === name)) name = 'overview';
+    tabs.forEach((t) => {
+      const on = t.dataset.dtab === name;
+      t.classList.toggle('is-on', on);
+      t.setAttribute('aria-selected', on);
+    });
+    document.querySelectorAll('[data-dpane]').forEach((p) => p.classList.toggle('is-on', p.dataset.dpane === name));
+  };
+  tabs.forEach((t) => t.addEventListener('click', (event) => {
+    event.preventDefault();
+    history.replaceState(null, '', '#' + t.dataset.dtab);
+    showTab(t.dataset.dtab);
+  }));
+
+  /* The payment dialog: picking an instalment fills its amount, and the
+     provider fields only appear for money that did not come in as cash.
+     Waits for admin.js, which wires up the step-by-step flow inside it. */
+  const dlg = document.getElementById('pay-dlg');
+  if (dlg) document.addEventListener('DOMContentLoaded', () => {
+    const amount = document.getElementById('pay_amount');
+    const method = document.getElementById('method');
+    const flow = dlg.querySelector('form');
+    dlg.querySelectorAll('[name=installment_id]').forEach((r) => r.addEventListener('change', () => {
+      amount.value = r.dataset.amount || '';
+    }));
+    const syncMethod = () => dlg.querySelectorAll('[data-noncash]').forEach((f) => { f.hidden = method.value === 'cash'; });
+    method.addEventListener('change', syncMethod);
+    syncMethod();
+
+    document.querySelectorAll('[data-pay]').forEach((button) => button.addEventListener('click', () => {
+      const radio = dlg.querySelector(`[name=installment_id][value="${button.dataset.pay}"]`);
+      if (radio) { radio.checked = true; radio.closest('details')?.setAttribute('open', ''); }
+      amount.value = button.dataset.amount;
+      dlg.showModal();
+      flow.dispatchEvent(new CustomEvent('wiz:goto', { detail: 1 }));
+    }));
+
+    // The ledger's "Take payment" links here with #record.
+    if (location.hash === '#record') {
+      history.replaceState(null, '', '#schedule');
+      showTab('schedule');
+      dlg.showModal();
+      flow.dispatchEvent(new CustomEvent('wiz:goto', { detail: 0 }));
+    }
+  });
+  showTab(location.hash.replace('#record', '#schedule').slice(1));
+</script>
+{% endblock %}

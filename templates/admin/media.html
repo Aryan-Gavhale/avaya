@@ -1,0 +1,112 @@
+{% extends "admin/base.html" %}
+{% from "admin/_icons.html" import ico %}
+{% from "admin/_fields.html" import csrf, badge %}
+
+{% block actions %}
+<form class="search" method="get">
+  {{ ico('search') }}
+  <input class="in" type="search" name="q" value="{{ search }}" placeholder="Search alt text and titles" data-slash>
+  {% if source %}<input type="hidden" name="source" value="{{ source }}">{% endif %}
+</form>
+{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="panel__h">
+    <div><h2>Add photographs</h2><p>JPEG, PNG or WebP. A 480px thumbnail and a 1200px display copy are made for you.</p></div>
+    <div class="right">
+      {% if google_ready %}
+      <form method="post" action="{{ url_for('admin.media_google_import') }}">
+        {{ csrf() }}
+        <button class="b b--sm" type="submit">{{ ico('download') }} Import Google Place photos</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  <div class="panel__b">
+    <div class="drop" id="drop">
+      <h3><span class="nophone">Drop files here</span><span class="onlyphone">Camera or photo library</span></h3>
+      <p><span class="nophone">Or choose them from your computer.</span>
+        <span class="onlyphone">From the camera or the photo library.</span> Several at once is fine.</p>
+      <form method="post" action="{{ url_for('admin.media_upload') }}" enctype="multipart/form-data">
+        {{ csrf() }}
+        <input class="sr" id="drop-input" type="file" name="files" accept="image/*" multiple>
+        <label class="b b--go" for="drop-input">{{ ico('upload') }} Choose files</label>
+        <button class="b" type="submit">Upload</button>
+      </form>
+      <p id="drop-status" class="hint" style="margin:12px 0 0" role="status" aria-live="polite"></p>
+    </div>
+    {% if not google_ready %}
+    <p class="hint" style="margin:12px 0 0">
+      Google Place photos can be linked instead of uploaded once a key and Place ID are saved on the
+      <a href="{{ url_for('admin.reviews_home') }}">reviews screen</a>. They stream from Google, so keep your own
+      photographs for anything permanent.
+    </p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="panel" data-live="results">
+  <div class="panel__h">
+    <div><h2>{{ rows | length }} of {{ counts.all }} image{{ 's' if counts.all != 1 }}</h2>
+      <p>Alt text is what a screen reader and Google read. Describe the photograph, do not repeat the clinic name.</p></div>
+    <div class="right">
+      <div class="tabs">
+        <a class="tab {{ 'is-on' if not source }}" href="{{ url_for('admin.media_library', q=search) }}">All <b>{{ counts.all }}</b></a>
+        <a class="tab {{ 'is-on' if source == 'upload' }}" href="{{ url_for('admin.media_library', q=search, source='upload') }}">Uploaded <b>{{ counts.upload }}</b></a>
+        <a class="tab {{ 'is-on' if source == 'remote' }}" href="{{ url_for('admin.media_library', q=search, source='remote') }}">Linked <b>{{ counts.remote }}</b></a>
+        <a class="tab {{ 'is-on' if source == 'google' }}" href="{{ url_for('admin.media_library', q=search, source='google') }}">Google <b>{{ counts.google }}</b></a>
+      </div>
+    </div>
+  </div>
+  <div class="panel__b">
+    {% if rows %}
+    <div class="mgrid">
+      {% for m in rows %}
+      <div class="mcard {{ 'is-hl' if request.args.get('highlight') == (m.id | string) }}" id="m{{ m.id }}">
+        <div class="mcard__i">
+          <a href="{{ media_url(m, 'medium') }}" target="_blank" rel="noopener" title="Open the full image">
+            <img src="{{ media_url(m, 'thumb') }}" alt="{{ m.alt }}" loading="lazy">
+          </a>
+        </div>
+        <form class="mcard__b" method="post" action="{{ url_for('admin.media_save', row_id=m.id) }}">
+          {{ csrf() }}
+          <input class="in" name="alt" value="{{ m.alt }}" placeholder="Alt text" aria-label="Alt text for image {{ m.id }}">
+          <input class="in" name="title" value="{{ m.title }}" placeholder="Internal title" aria-label="Title for image {{ m.id }}">
+          {% if m.source != 'upload' %}
+          <input class="in" name="credit" value="{{ m.credit }}" placeholder="Credit" aria-label="Credit for image {{ m.id }}">
+          {% else %}
+          <input type="hidden" name="credit" value="{{ m.credit }}">
+          {% endif %}
+          <div class="mcard__m">
+            <span>#{{ m.id }}</span>
+            {% if m.width %}<span>{{ m.width }}&times;{{ m.height }}</span>{% endif %}
+            {% if m.bytes %}<span>{{ (m.bytes / 1024) | round | int }} KB</span>{% endif %}
+            {% if m.source != 'upload' %}{{ badge(m.source, 'info') }}{% endif %}
+            {% if not m.alt %}{{ badge('no alt text', 'warn') }}{% endif %}
+          </div>
+          <div class="mcard__f">
+            <button class="b b--sm b--go" type="submit">Save</button>
+            <button class="b b--sm b--bad" type="submit" form="kill-{{ m.id }}">Delete</button>
+          </div>
+        </form>
+        <form id="kill-{{ m.id }}" method="post" hidden
+              action="{{ url_for('admin.media_delete', row_id=m.id) }}"
+              data-confirm="Delete image #{{ m.id }}? Anything using it falls back to no image.">
+          {{ csrf() }}
+          {% if request.args.get('highlight') == (m.id | string) %}<input type="hidden" name="force" value="1">{% endif %}
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty">
+      <h3>{% if search or source %}Nothing matched{% else %}The library is empty{% endif %}</h3>
+      <p>{% if search or source %}Try a different search or clear the filter.{% else %}Upload the clinic's photographs and they become selectable in every image field.{% endif %}</p>
+      {% if search or source %}<a class="b" href="{{ url_for('admin.media_library') }}">Clear filters</a>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

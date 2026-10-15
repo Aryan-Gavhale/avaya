@@ -1,0 +1,120 @@
+{% extends "admin/base.html" %}
+{% from "admin/_icons.html" import ico %}
+{% from "admin/_fields.html" import csrf, badge %}
+
+{% block actions %}
+{% if res.searchable %}
+<form class="search" method="get">
+  {{ ico('search') }}
+  <input class="in" type="search" name="q" value="{{ search }}" placeholder="Search {{ res.label_plural | lower }}" data-slash>
+</form>
+{% endif %}
+<a class="b b--go" data-fab href="{{ url_for('admin.' ~ res.key ~ '_new') }}">{{ ico('plus') }} New {{ res.label | lower }}</a>
+{% endblock %}
+
+{% block content %}
+{% if res.intro %}<div class="note note--plain" style="margin-bottom:16px">{{ res.intro }}</div>{% endif %}
+
+<div class="panel" data-live="results">
+  <div class="panel__h">
+    <div>
+      <h2>{{ rows | length }} {{ res.label_plural | lower if rows | length != 1 else res.label | lower }}</h2>
+      {% if res.sortable %}
+      <p><span class="nophone">Drag the handle to reorder.</span><span class="onlyphone">Use the arrows to reorder.</span>
+        The website uses this order.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="panel__b panel__b--flush">
+    {% if rows %}
+    <div class="tw">
+      <table class="t" {% if res.sortable %}data-reorder="{{ url_for('admin.' ~ res.key ~ '_reorder') }}"{% endif %}>
+        <thead>
+          <tr>
+            {% if res.sortable %}<th></th>{% endif %}
+            {% for key, label in res.list_columns %}<th>{{ label }}</th>{% endfor %}
+            {% if res.publishable %}<th>Live</th>{% endif %}
+            <th class="act">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr data-id="{{ row.id }}" class="{{ 'is-draft' if res.publishable and not row.is_published }}">
+            {% if res.sortable %}<td class="drag" title="Drag or use the arrow keys">{{ ico('drag') }}</td>{% endif %}
+
+            {# the first column is the card heading on a phone, so it carries no
+               label; every other cell prints its column name from data-label #}
+            {% for key, label in res.list_columns %}
+            <td class="{{ 'w-thumb' if key == 'media_id' }}"
+                {% if not loop.first and key != 'media_id' %}data-label="{{ label }}"{% endif %}>
+              {% if key == 'media_id' %}
+                {% set m = media_row(row[key]) %}
+                {% if m %}<img class="t__thumb" src="{{ media_url(m, 'thumb') }}" alt="">{% else %}<span class="hint">&mdash;</span>{% endif %}
+              {% elif loop.first %}
+                <a class="rowlink" href="{{ url_for('admin.' ~ res.key ~ '_edit', row_id=row.id) }}">{{ row[key] or '#' ~ row.id }}</a>
+                {% if res.key == 'galleries' %}
+                <a class="t__sub" href="{{ url_for('admin.gallery_items', gallery_id=row.id) }}">Manage photographs</a>
+                {% endif %}
+              {% elif key == 'price_band' %}
+                {% if row.price_from %}{{ row.price_from | money }}{% if row.price_to %} &ndash; {{ row.price_to | money }}{% endif %}
+                {% else %}<span class="hint">on request</span>{% endif %}
+              {% elif key == 'rate_label' %}
+                {% if row.interest_rate %}{{ row.interest_rate }}% a year{% else %}{{ badge('no cost', 'good') }}{% endif %}
+                {% if row.processing_fee_pct %}<span class="t__sub">{{ row.processing_fee_pct }}% fee</span>{% endif %}
+              {% elif key == 'band' %}
+                {{ row.min_amount | money if row.min_amount else 'any' }} &ndash;
+                {{ row.max_amount | money if row.max_amount else 'no ceiling' }}
+              {% elif key == 'flags' %}
+                {% if row.is_featured %}{{ badge('featured', 'brand') }}{% endif %}
+                {% if row.emi_eligible %}{{ badge('EMI', 'info') }}{% endif %}
+                {% if not row.is_featured and not row.emi_eligible %}<span class="hint">&mdash;</span>{% endif %}
+              {% elif key in ('price_from', 'price_to', 'amount', 'monthly_emi', 'treatment_amount') %}
+                {{ row[key] | money if row[key] else '—' }}
+              {% elif key == 'rating' %}
+                {{ '★' * (row[key] or 0) }}<span class="hint">{{ '☆' * (5 - (row[key] or 0)) }}</span>
+              {% else %}
+                {{ row[key] if row[key] not in (none, '') else '—' }}
+              {% endif %}
+            </td>
+            {% endfor %}
+
+            {% if res.publishable %}
+            <td data-label="Live">
+              <label class="sw" style="padding:0">
+                <input type="checkbox" {{ 'checked' if row.is_published }}
+                       data-toggle-url="{{ url_for('admin.' ~ res.key ~ '_toggle', row_id=row.id) }}"
+                       aria-label="Show {{ res.label_for(row) }} on the website">
+                <span class="sw__t"></span>
+              </label>
+            </td>
+            {% endif %}
+
+            <td class="act">
+              <a class="b b--sm" href="{{ url_for('admin.' ~ res.key ~ '_edit', row_id=row.id) }}">Edit</a>
+              <form method="post" style="display:inline"
+                    action="{{ url_for('admin.' ~ res.key ~ '_delete', row_id=row.id) }}"
+                    data-confirm="Delete “{{ res.label_for(row) }}”? This cannot be undone.">
+                {{ csrf() }}
+                <button class="b b--sm b--bad" type="submit">Delete</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty">
+      <h3>{% if search %}Nothing matched “{{ search }}”{% else %}No {{ res.label_plural | lower }} yet{% endif %}</h3>
+      <p>{% if search %}Try a shorter search.{% else %}{{ res.intro or 'Add the first one and it appears on the website straight away.' }}{% endif %}</p>
+      {% if search %}
+      <a class="b" href="{{ url_for('admin.' ~ res.key ~ '_list') }}">Clear the search</a>
+      {% else %}
+      <a class="b b--go" href="{{ url_for('admin.' ~ res.key ~ '_new') }}">{{ ico('plus') }} New {{ res.label | lower }}</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,63 @@
+{% from "public/_icons.html" import stars, google_g, arrow %}
+{% set b = x.get('bundle') %}
+<section class="sect sect--{{ d.tone or 'light' }}" id="{{ row.anchor or 'sec-' ~ row.id }}" data-sec="{{ row.type }}">
+  <div class="shell">
+    <div class="rev__top">
+      <div class="head2 rv rv--fade" style="margin-bottom:0">
+        {% if row.eyebrow %}<span class="kicker">{{ row.eyebrow }}</span>{% endif %}
+        {% if row.title %}<h2 class="h-lg">{{ row.title }}</h2>{% endif %}
+        {% if row.subtitle %}
+        <p class="lede">
+          {% if b and b.is_google %}{{ row.subtitle }}{% else %}Selected from patients who agreed to be quoted. Google reviews appear here as soon as the practice connects its profile.{% endif %}
+        </p>
+        {% endif %}
+      </div>
+
+      {% if b and d.get('show_summary', 1) and b.rating %}
+      <div class="gscore rv rv--right">
+        <span class="gscore__n">{{ '%.1f'|format(b.rating|float) }}</span>
+        <span class="gscore__meta">
+          <span class="gscore__stars">{{ stars(b.rating|round|int) }}</span>
+          <span class="gscore__c">{{ b.total }} review{{ 's' if b.total != 1 }}{% if not b.is_google %} on file{% endif %}</span>
+          {% if b.is_google %}<span class="gscore__g">{{ google_g() }} Google reviews</span>{% endif %}
+        </span>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if b and b.reviews %}
+    <div class="revs">
+      {% for r in b.reviews %}
+      <article class="rev rv" style="--i:{{ loop.index0 }}">
+        <span class="rev__stars">{{ stars(r.rating) }}</span>
+        <p class="rev__body">{{ r.body|shorten(420) }}</p>
+        <div class="rev__who">
+          <span class="rev__av">
+            {% if r.avatar %}<img src="{{ r.avatar }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% else %}{{ r.author|initials }}{% endif %}
+          </span>
+          <span>
+            <span class="rev__n">
+              {% if r.author_url %}<a href="{{ r.author_url }}" target="_blank" rel="noopener nofollow">{{ r.author }}</a>{% else %}{{ r.author }}{% endif %}
+            </span>
+            <span class="rev__w">{{ r.when }}</span>
+          </span>
+          {% if r.source == 'google' %}<span class="rev__src" title="Review from Google">{{ google_g() }}</span>{% endif %}
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="lede rv rv--fade">Reviews will appear here once the practice connects its Google profile or publishes a patient quote.</p>
+    {% endif %}
+
+    <div class="disclose rv rv--fade">
+      {% if b and b.is_google %}
+      <span class="gscore__g">{{ google_g() }} Reviews from Google</span>
+      <p>Google shows up to five reviews through its API and orders them itself; they are not filtered or edited by us. Ratings and review text are refreshed from Google periodically and are not stored here permanently.</p>
+      {% if b.write_url %}<a class="tlink" href="{{ b.write_url }}" target="_blank" rel="noopener">Write a review on Google{{ arrow() }}</a>{% endif %}
+      {% else %}
+      <p>These are patient quotes held by the practice, published with permission. Google reviews are shown here as soon as the profile is connected in the admin panel.</p>
+      {% endif %}
+    </div>
+  </div>
+</section>

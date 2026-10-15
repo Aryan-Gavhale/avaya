@@ -1,0 +1,62 @@
+{% extends "admin/base.html" %}
+{% from "admin/_icons.html" import ico %}
+{% from "admin/_fields.html" import csrf, badge %}
+
+{% block content %}
+<div class="split-main">
+  <form method="post">
+    {{ csrf() }}
+    <div class="panel">
+      <div class="panel__h"><div><h2>Your details</h2><p>Change your display name or your password.</p></div></div>
+      <div class="panel__b">
+        <div class="fg">
+          <div class="fi fi--12">
+            <label for="name">Name</label>
+            <input class="in" id="name" name="name" value="{{ admin_user.name }}">
+          </div>
+          <div class="fi fi--12 fhead"><h3>Change the password</h3>
+            <span class="hint">Leave these blank to keep the one you have.</span></div>
+          <div class="fi fi--12">
+            <label for="current_password">Current password</label>
+            <input class="in" id="current_password" name="current_password" type="password" autocomplete="current-password">
+          </div>
+          <div class="fi fi--12">
+            <label for="new_password">New password</label>
+            <input class="in" id="new_password" name="new_password" type="password" autocomplete="new-password">
+            <span class="hint">At least 8 characters. A passphrase of three unrelated words works well.</span>
+          </div>
+        </div>
+      </div>
+      <div class="panel__f">
+        <button class="b b--go" type="submit">{{ ico('save') }} Save</button>
+      </div>
+    </div>
+  </form>
+
+  <div class="sticky">
+    <div class="panel">
+      <div class="panel__h"><div><h2>This account</h2></div></div>
+      <div class="panel__b">
+        <dl class="kv" style="grid-template-columns:110px 1fr">
+          <dt>Email</dt><dd>{{ admin_user.email }}</dd>
+          <dt>Role</dt><dd>{{ ROLE_LABELS.get(admin_user.role, admin_user.role) }}</dd>
+          <dt>Created</dt><dd>{{ admin_user.created_at | date_fmt }}</dd>
+          <dt>Last sign-in</dt><dd>{{ admin_user.last_login_at | ago if admin_user.last_login_at else 'this session' }}</dd>
+        </dl>
+        <p style="margin:14px 0 0" class="hint">
+          You can reach:
+          {% for area in ['content', 'media', 'reviews', 'enquiries', 'emi', 'settings', 'users', 'audit'] %}
+            {% if can(area) %}{{ badge(area, 'brand') }} {% endif %}
+          {% endfor %}
+        </p>
+      </div>
+      <div class="panel__f">
+        <form method="post" action="{{ url_for('admin.logout') }}">
+          {{ csrf() }}
+          <button class="b b--sm" type="submit">{{ ico('out') }} Sign out</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

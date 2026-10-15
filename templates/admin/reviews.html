@@ -1,0 +1,270 @@
+{% extends "admin/base.html" %}
+{% from "admin/_icons.html" import ico %}
+{% from "admin/_fields.html" import csrf, badge %}
+
+{% block actions %}
+<a class="b" href="{{ url_for('admin.testimonials_list') }}">{{ ico('quote') }} Curated quotes</a>
+{% if state.has_key and state.place_id %}
+<form method="post" action="{{ url_for('admin.reviews_sync') }}">
+  {{ csrf() }}
+  <button class="b b--go" type="submit">{{ ico('refresh') }} Sync now</button>
+</form>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+
+<div class="stats">
+  <div class="sc">
+    <span class="sc__l">Connection</span>
+    <span class="sc__n" style="font-size:18px">
+      {% if state.has_key and state.place_id %}Live{% elif state.has_key %}Key only{% else %}Not connected{% endif %}
+    </span>
+    <span class="sc__d">
+      {% if state.place_name %}{{ state.place_name }}{% else %}Add a key and resolve the Place ID below{% endif %}
+    </span>
+  </div>
+  <div class="sc">
+    <span class="sc__l">Rating on Google</span>
+    <span class="sc__n">{{ state.rating if state.rating else '—' }}</span>
+    <span class="sc__d">{{ state.total ~ ' reviews in total' if state.total else 'Nothing fetched yet' }}</span>
+  </div>
+  <div class="sc">
+    <span class="sc__l">Cached review text</span>
+    <span class="sc__n">{{ state.cached_count }}</span>
+    <span class="sc__d">
+      {% if state.cached %}
+        {{ state.cache_age }} minutes old &middot;
+        {{ badge('fresh', 'good') if state.cache_fresh else badge('stale', 'warn') }}
+      {% else %}Cache empty{% endif %}
+    </span>
+  </div>
+  <div class="sc">
+    <span class="sc__l">Curated fallback</span>
+    <span class="sc__n">{{ state.manual_count }}</span>
+    <span class="sc__d"><a href="{{ url_for('admin.testimonials_list') }}">Manage the quotes</a></span>
+  </div>
+</div>
+
+<div class="note note--warn" style="margin-bottom:18px">
+  <p><b>What Google allows, in plain terms.</b></p>
+  <p>The Places API returns <b>at most five reviews</b> per place, and only the ones Google chooses.
+    That is a hard limit on their side; no setting here changes it.</p>
+  <p>Review text may not be stored permanently, so it lives in a short cache that expires on the TTL
+    below and is purged on every sync. The only thing kept for good is the Place ID.</p>
+  <p>The <code>reviews</code> field is billed on the Enterprise + Atmosphere tier, so leave the TTL
+    generous rather than fetching on every page view. For the permanent gallery, upload your own
+    photographs instead of relying on Place photos.</p>
+</div>
+
+{% if candidates is not none %}
+<div class="panel">
+  <div class="panel__h">
+    <div><h2>{{ candidates | length }} match{{ 'es' if candidates | length != 1 }} for “{{ query }}”</h2>
+      <p>Pick the right listing and its Place ID is filled in below.</p></div>
+  </div>
+  <div class="panel__b panel__b--flush">
+    <div class="tw">
+      <table class="t">
+        <thead><tr><th>Listing</th><th>Address</th><th>Rating</th><th class="act"></th></tr></thead>
+        <tbody>
+          {% for c in candidates %}
+          <tr>
+            <td><span class="t__title">{{ c.displayName.text if c.displayName else c.id }}</span>
+                <span class="t__sub"><code>{{ c.id }}</code></span></td>
+            <td data-label="Address">{{ c.formattedAddress or '—' }}</td>
+            <td data-label="Rating">{{ c.rating or '—' }} {% if c.userRatingCount %}<span class="t__sub">{{ c.userRatingCount }} reviews</span>{% endif %}</td>
+            <td class="act">
+              <form method="post" action="{{ url_for('admin.reviews_save') }}">
+                {{ csrf() }}
+                <input type="hidden" name="api_key" value="********">
+                <input type="hidden" name="place_id" value="{{ c.id }}">
+                <input type="hidden" name="place_name" value="{{ c.displayName.text if c.displayName else '' }}">
+                <input type="hidden" name="reviews_source" value="{{ state.source }}">
+                <input type="hidden" name="ttl" value="{{ state.ttl }}">
+                <input type="hidden" name="min_rating" value="{{ S('google.min_rating', 0) }}">
+                <input type="hidden" name="max_reviews" value="{{ S('google.max_reviews', 5) }}">
+                {% if S('google.photos_enabled') %}<input type="hidden" name="photos_enabled" value="1">{% endif %}
+                <button class="b b--sm b--go" type="submit">Use this one</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="split-main">
+  <div>
+    <form method="post" action="{{ url_for('admin.reviews_save') }}" data-guard>
+      {{ csrf() }}
+      <div class="panel">
+        <div class="panel__h"><div><h2>Connection</h2>
+          <p>An API key with <b>Places API (New)</b> enabled, restricted to this server's IP address.</p></div></div>
+        <div class="panel__b">
+          <div class="fg">
+            <div class="fi fi--12">
+              <label for="api_key">API key</label>
+              <input class="in" id="api_key" name="api_key" type="password" autocomplete="off"
+                     value="{{ '********' if state.has_key else '' }}"
+                     placeholder="AIza…">
+              <span class="hint">
+                {% if state.has_key %}A key is saved. Leave the dots alone to keep it, or paste a new one.
+                {% else %}Google Cloud console &rarr; APIs &amp; Services &rarr; Credentials &rarr; Create API key.{% endif %}
+              </span>
+            </div>
+            {% if state.has_key %}
+            <div class="fi fi--12">
+              <label class="sw">
+                <input type="checkbox" name="clear_key" value="1">
+                <span class="sw__t"></span>
+                <span class="sw__l">Remove the saved key<span>The site falls back to curated quotes immediately.</span></span>
+              </label>
+            </div>
+            {% endif %}
+
+            <div class="fi fi--12 fhead"><h3>The listing</h3></div>
+            <div class="fi fi--7">
+              <label for="place_id">Place ID</label>
+              <input class="in" id="place_id" name="place_id" value="{{ state.place_id }}" placeholder="ChIJ…">
+            </div>
+            <div class="fi fi--5">
+              <label for="place_name">Listing name</label>
+              <input class="in" id="place_name" name="place_name" value="{{ state.place_name }}">
+              <span class="hint">Only for your reference here.</span>
+            </div>
+
+            <div class="fi fi--12 fhead"><h3>How the site uses them</h3></div>
+            <div class="fi fi--6">
+              <label for="reviews_source">Source</label>
+              <select class="in" id="reviews_source" name="reviews_source">
+                <option value="auto" {{ 'selected' if state.source == 'auto' }}>Google, fall back to curated quotes</option>
+                <option value="google" {{ 'selected' if state.source == 'google' }}>Google only</option>
+                <option value="manual" {{ 'selected' if state.source == 'manual' }}>Curated quotes only</option>
+              </select>
+              <span class="hint">Individual reviews sections can override this.</span>
+            </div>
+            <div class="fi fi--6">
+              <label for="ttl">Cache lifetime</label>
+              <div class="wrapin">
+                <input class="in" id="ttl" name="ttl" type="number" min="15" step="15" value="{{ state.ttl }}">
+                <span class="fix">minutes</span>
+              </div>
+              <span class="hint">360 is a sensible default. Lower means fresher reviews and a bigger bill.</span>
+            </div>
+            <div class="fi fi--6">
+              <label for="min_rating">Minimum rating to show</label>
+              <select class="in" id="min_rating" name="min_rating">
+                {% for value, label in [(0, 'Show every review'), (3, '3 stars and up'), (4, '4 stars and up'), (5, '5 stars only')] %}
+                <option value="{{ value }}" {{ 'selected' if S('google.min_rating', 0) | int == value }}>{{ label }}</option>
+                {% endfor %}
+              </select>
+              <span class="hint">Filtering is allowed, but the section always says the reviews are filtered.</span>
+            </div>
+            <div class="fi fi--6">
+              <label for="max_reviews">Maximum shown</label>
+              <input class="in" id="max_reviews" name="max_reviews" type="number" min="1" max="5"
+                     value="{{ S('google.max_reviews', 5) }}">
+              <span class="hint">Five is the ceiling Google returns.</span>
+            </div>
+            <div class="fi fi--12">
+              <label class="sw">
+                <input type="checkbox" name="photos_enabled" value="1" {{ 'checked' if S('google.photos_enabled') }}>
+                <span class="sw__t"></span>
+                <span class="sw__l">Allow Place photos to be proxied<span>Lets the media library link Google photos. They stream live and are never stored.</span></span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="panel__f">
+          <button class="b b--go" type="submit">{{ ico('save') }} Save connection</button>
+          {% if state.place_id %}
+          <a class="b" href="{{ write_url or 'https://search.google.com/local/writereview?placeid=' ~ state.place_id }}"
+             target="_blank" rel="noopener">{{ ico('external') }} Write-a-review link</a>
+          {% endif %}
+        </div>
+      </div>
+    </form>
+
+    {% if cached %}
+    <div class="panel">
+      <div class="panel__h">
+        <div><h2>What is cached right now</h2>
+          <p>Exactly what the site is showing. Copy one into the curated quotes if you want it to outlive the cache.</p></div>
+        <div class="right">
+          <form method="post" action="{{ url_for('admin.reviews_clear') }}"
+                data-confirm="Clear the cached review text?">
+            {{ csrf() }}
+            <button class="b b--sm" type="submit">{{ ico('trash') }} Clear cache</button>
+          </form>
+        </div>
+      </div>
+      <div class="panel__b">
+        {% for r in cached %}
+        <div style="padding:14px 0; border-bottom:1px solid var(--a-line-2)">
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+            <b>{{ r.author }}</b>
+            <span class="hint">{{ '★' * r.rating }}{{ '☆' * (5 - r.rating) }}</span>
+            <span class="hint">{{ r.when }}</span>
+            {% if r.author_url %}<a class="hint" href="{{ r.author_url }}" target="_blank" rel="noopener nofollow">Profile</a>{% endif %}
+            <form method="post" action="{{ url_for('admin.reviews_keep') }}" style="margin-left:auto">
+              {{ csrf() }}
+              <input type="hidden" name="author" value="{{ r.author }}">
+              <input type="hidden" name="body" value="{{ r.body }}">
+              <input type="hidden" name="rating" value="{{ r.rating }}">
+              <input type="hidden" name="review_id" value="{{ r.id }}">
+              <button class="b b--sm" type="submit">Keep as a quote</button>
+            </form>
+          </div>
+          <p style="margin:8px 0 0; font-size:13.5px">{{ r.body | shorten(400) }}</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="sticky">
+    <div class="panel">
+      <div class="panel__h"><div><h2>Find the Place ID</h2></div></div>
+      <div class="panel__b">
+        <form method="post" action="{{ url_for('admin.reviews_search') }}">
+          {{ csrf() }}
+          <div class="fi">
+            <label for="query">Practice name and city</label>
+            <input class="in" id="query" name="query" value="{{ state.place_name or brand.name }}"
+                   placeholder="Anvaya Dental Care Pune">
+          </div>
+          <button class="b b--go" type="submit" style="margin-top:10px; width:100%">{{ ico('search') }} Search Google</button>
+        </form>
+        {% if not state.has_key %}
+        <p class="hint" style="margin-top:10px">Save an API key first, then search.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel__h"><div><h2>Sync log</h2><p>Last 15 calls.</p></div></div>
+      <div class="panel__b">
+        <div class="feed">
+          {% for l in log %}
+          <div class="feed__i" style="grid-template-columns:1fr auto">
+            <span class="feed__t">
+              <b>{{ 'OK' if l.ok else 'Failed' }}</b>
+              {% if l.status_code %}<span>{{ l.status_code }}</span>{% endif %}
+              {% if l.count %}<span>&middot; {{ l.count }} item(s)</span>{% endif %}
+              <span style="display:block">{{ l.message | shorten(120) }}</span>
+            </span>
+            <span class="feed__w">{{ l.created_at | ago }}</span>
+          </div>
+          {% endfor %}
+          {% if not log %}<p class="hint">Nothing yet.</p>{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

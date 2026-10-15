@@ -1,0 +1,13 @@
+config.json
+db/*.db
+db/*.db-wal
+db/*.db-shm
+db/secret.key
+db/first-login.txt
+static/uploads/*
+!static/uploads/.gitkeep
+backups/
+_shots/
+__pycache__/
+*.pyc
+.venv/

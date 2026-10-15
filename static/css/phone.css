@@ -1,0 +1,327 @@
+/* ==========================================================================
+   Anvaya Dental Care — phone app layer
+   Loaded with media="(max-width: 760px)", so everything here is phone-only and
+   the desktop stylesheet stays untouched.
+
+   The intent is a native app rather than a narrow website: a compact app bar
+   that hides as you read, horizontal rails instead of stacked grids, a bottom
+   tab bar with a raised primary action, and a bottom sheet for the rest of the
+   navigation. Same flat palette and hairlines as the desktop site.
+   ========================================================================== */
+
+:root {
+  --tab-h: 60px;
+  --app-h: 56px;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --sheet-ease: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Taps should feel like a button press, not a link click. */
+* { -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-size: 15.5px;
+  line-height: 1.58;
+  /* room for the tab bar, replacing the desktop sticky call bar */
+  padding-block-end: calc(var(--tab-h) + var(--safe-b) + 20px);
+}
+
+.shell { padding-inline: 16px; }
+
+/* ── app bar ────────────────────────────────────────────────────────────── */
+.topline { display: none; }
+
+/* the desktop header is already sticky; on a phone it also gets out of the way */
+.head { transition: transform 0.26s var(--sheet-ease), box-shadow 0.3s; }
+.head.is-away { transform: translateY(-100%); }
+.head.is-stuck { box-shadow: 0 1px 0 var(--line); }
+
+.head__in {
+  min-height: var(--app-h);
+  padding-block: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* the wordmark is the home link, so it needs a thumb-sized hit area */
+.head .brandmark { min-height: 42px; }
+.brandmark__glyph { width: 30px; height: 30px; }
+.brandmark__name { font-size: 16.5px; letter-spacing: -0.01em; }
+.brandmark__sub { display: none; }
+
+.head__cta { margin-inline-start: auto; display: flex; align-items: center; gap: 6px; }
+.head__cta .btn { display: none; }
+.burger { display: none; }          /* the More tab replaces it */
+.drawer { display: none !important; }
+
+.iconbtn,
+.appbtn {
+  width: 40px; height: 40px;
+  display: grid; place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0;
+}
+.iconbtn svg, .appbtn svg { width: 19px; height: 19px; }
+.iconbtn:active, .appbtn:active { background: var(--primary-tint); transform: scale(0.94); }
+
+/* in-page anchors must not land under the sticky bar */
+html { scroll-padding-block-start: calc(var(--app-h) + 10px); }
+
+/* A sideways reveal has nowhere to go on a 390px screen — it only widens the
+   page until it lands. Everything rises instead. */
+.rv--left, .rv--right { transform: translateY(16px); }
+
+/* ── section rhythm ─────────────────────────────────────────────────────── */
+.sect { padding-block: 34px; }
+.sect__head { margin-block-end: 18px; }
+.h-lg { font-size: clamp(27px, 8.4vw, 34px); }
+.h-md { font-size: 22px; }
+.kicker { font-size: 11.5px; letter-spacing: 0.14em; }
+
+/* ── horizontal rails ───────────────────────────────────────────────────
+   Stacking eight treatment cards makes a phone page endless. A rail keeps the
+   section one screen tall and tells you there is more by letting the next card
+   peek in, which is how a shop app shows a shelf. */
+.cards,
+.docs,
+.revs,
+.branches {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 78%;
+  grid-template-columns: none;
+  gap: 12px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline-start: 16px;
+  /* bleed to the screen edges so the rail reads as a shelf, not a boxed grid */
+  margin-inline: -16px;
+  padding-inline: 16px;
+  padding-block-end: 4px;
+  scrollbar-width: none;
+}
+.cards::-webkit-scrollbar,
+.docs::-webkit-scrollbar,
+.revs::-webkit-scrollbar,
+.branches::-webkit-scrollbar { display: none; }
+
+.cards > *, .docs > *, .revs > *, .branches > * { scroll-snap-align: start; }
+.revs { grid-auto-columns: 86%; }
+.branches { grid-auto-columns: 88%; }
+
+.card, .doc, .rev, .branch { height: 100%; }
+.card:active, .doc:active, .rev:active, .branch:active { transform: scale(0.985); }
+
+/* a "see all" that behaves like a chip rather than a text link */
+.cards__foot { margin-block-start: 16px; }
+.cards__foot .tlink,
+.sect__head .tlink {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 15px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 13.5px;
+}
+
+/* ── things that only make sense on a big screen ────────────────────────── */
+.hero__inset, .hero__chip { display: none; }
+.hero { padding-block: 24px 30px; }
+.hero__frame { aspect-ratio: 3 / 2; border-radius: 16px; }
+.steps::before { display: none; }
+.mosaic { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 118px; gap: 8px; }
+.mosaic__i:nth-child(1) { grid-column: span 2; grid-row: span 1; }
+.mosaic__i { border-radius: 12px; }
+
+.stats__grid { grid-template-columns: repeat(2, 1fr); gap: 20px 14px; }
+.stat__n { font-size: 27px; }
+.trust__grid { grid-template-columns: repeat(2, 1fr); }
+.trust__item { border: 0; padding: 0; }
+
+/* ── forms sized for thumbs ─────────────────────────────────────────────── */
+.formcard { padding: 18px 16px; border-radius: 16px; }
+.f input, .f select, .f textarea {
+  min-height: 48px;
+  font-size: 16px;               /* iOS zooms anything smaller on focus */
+  border-radius: 12px;
+}
+.f textarea { min-height: 104px; }
+.chips { gap: 8px; }
+.chip { min-height: 40px; border-radius: 999px; }
+.btn { min-height: 50px; font-size: 15.5px; }
+.btn--lg { min-height: 54px; }
+.btn:hover { transform: none; }
+.btn:active { transform: scale(0.98); }
+
+/* ── bottom tab bar ─────────────────────────────────────────────────────── */
+.stickybar { display: none !important; }
+
+.tabbar {
+  position: fixed;
+  inset-block-end: 0;
+  inset-inline: 0;
+  z-index: 60;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  align-items: end;
+  gap: 2px;
+  padding: 6px 4px calc(6px + var(--safe-b));
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  border-block-start: 1px solid var(--line-soft);
+}
+
+.tabbar__a {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  padding: 5px 2px 4px;
+  border: 0;
+  background: none;
+  color: var(--ink-70);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  line-height: 1.1;
+  text-align: center;
+  border-radius: 12px;
+}
+.tabbar__a svg { width: 22px; height: 22px; }
+.tabbar__a:active { background: var(--primary-tint); }
+.tabbar__a.is-on { color: var(--primary); }
+.tabbar__a.is-on .tabbar__i::after {
+  content: "";
+  position: absolute;
+  inset-block-end: -3px;
+  inset-inline-start: 50%;
+  translate: -50% 0;
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+.tabbar__i { position: relative; display: grid; place-items: center; }
+
+/* The raised centre action, the one thing the practice wants tapped. Negative
+   margins let it poke above the bar without making the bar taller. */
+.tabbar__a--go { color: var(--primary); }
+.tabbar__a--go .tabbar__i {
+  width: 46px; height: 46px;
+  margin-block: -13px -7px;
+  border-radius: 15px;
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--primary) 55%, transparent);
+}
+.tabbar__a--go .tabbar__i svg { width: 24px; height: 24px; }
+.tabbar__a--go:active .tabbar__i { transform: scale(0.93); }
+.tabbar__a--go.is-on .tabbar__i::after { display: none; }
+
+.tabbar__dot {
+  position: absolute;
+  inset-block-start: -3px;
+  inset-inline-start: calc(50% + 6px);
+  min-width: 15px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #B4472F;
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 600;
+  line-height: 15px;
+  text-align: center;
+}
+
+/* ── bottom sheet ───────────────────────────────────────────────────────── */
+.sheet { display: block; position: fixed; inset: 0; z-index: 70; }
+.sheet__scrim {
+  position: absolute; inset: 0;
+  background: rgba(16, 27, 26, 0.42);
+  opacity: 0;
+  transition: opacity 0.24s var(--sheet-ease);
+}
+.sheet__box {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline: 0;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-start-start-radius: 20px;
+  border-start-end-radius: 20px;
+  padding-block-end: var(--safe-b);
+  transform: translateY(100%);
+  transition: transform 0.3s var(--sheet-ease);
+}
+.sheet.is-open .sheet__scrim { opacity: 1; }
+.sheet.is-open .sheet__box { transform: none; }
+
+.sheet__grab {
+  flex: none;
+  width: 38px; height: 4px;
+  margin: 9px auto 2px;
+  border-radius: 999px;
+  background: var(--line);
+}
+.sheet__h {
+  flex: none;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px 10px;
+}
+.sheet__h h2 { font-size: 17px; }
+.sheet__b { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0 16px 18px; }
+
+.sheet__row {
+  display: flex; align-items: center; gap: 12px;
+  min-height: 52px;
+  padding: 6px 2px;
+  border-block-end: 1px solid var(--line-soft);
+  font-size: 15.5px;
+}
+.sheet__row:last-child { border-block-end: 0; }
+.sheet__row > svg:not(.sheet__chev) { width: 19px; height: 19px; color: var(--primary); }
+.sheet__chev { margin-inline-start: auto; width: 15px; height: 15px; color: color-mix(in srgb, var(--ink) 34%, transparent); }
+.sheet__row:active { background: var(--primary-tint); border-radius: 10px; }
+
+.sheet__label {
+  margin-block: 16px 2px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.sheet__note {
+  display: flex; align-items: center; gap: 8px;
+  margin-block: 12px 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--primary-tint);
+  font-size: 13.5px;
+}
+.sheet__foot { display: grid; gap: 8px; margin-block-start: 14px; }
+.sheet__social { display: flex; flex-wrap: wrap; gap: 8px; }
+.sheet__social a {
+  padding: 8px 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 13px;
+}
+
+/* ── footer, trimmed for a phone ────────────────────────────────────────── */
+.foot { padding-block: 30px 22px; }
+.foot__grid { grid-template-columns: minmax(0, 1fr); gap: 26px; }
+.foot__col--wide { order: -1; }
+.foot__base { flex-direction: column; gap: 10px; align-items: flex-start; }
+
+@media (prefers-reduced-motion: reduce) {
+  .head, .sheet__box, .sheet__scrim { transition-duration: 0.001ms !important; }
+  .head.is-away { transform: none; }
+}

@@ -1,0 +1,25 @@
+{# Fragment loaded into the picker modal by admin.js. No layout, no <html>. #}
+<div style="margin-bottom:14px">
+  <div class="search">
+    <input class="in" id="picker-search" type="search" value="{{ search }}"
+           placeholder="Search alt text and titles" autocomplete="off">
+  </div>
+</div>
+
+{% if rows %}
+<div class="pgrid">
+  {% for m in rows %}
+  <button class="pitem" type="button" data-id="{{ m.id }}"
+          data-thumb="{{ media_url(m, 'thumb') }}" data-alt="{{ m.alt | e }}">
+    <img src="{{ media_url(m, 'thumb') }}" alt="" loading="lazy">
+    <span>{{ m.alt or m.title or '#' ~ m.id }}</span>
+  </button>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty" style="padding:26px 10px">
+  <h3>{% if search %}Nothing matched “{{ search }}”{% else %}No images yet{% endif %}</h3>
+  <p>Upload photographs in the media library, then they show up here.</p>
+  <a class="b" href="{{ url_for('admin.media_library') }}">Open the media library</a>
+</div>
+{% endif %}

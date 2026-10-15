@@ -1,0 +1,135 @@
+{% extends "public/base.html" %}
+{% from "public/_icons.html" import icon, arrow, tick %}
+{% from "public/_form.html" import enquiry_form %}
+
+{% block content %}
+<div class="shell">
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <a href="/">Home</a><span>/</span>
+    <a href="/treatments">Treatments</a><span>/</span>
+    <span>{{ s.name }}</span>
+  </nav>
+</div>
+
+<section class="sect sect--light" style="padding-top:14px">
+  <div class="shell svc__hero">
+    <div>
+      {% if s.category_name %}<span class="kicker rv rv--fade">{{ s.category_name }}</span>{% endif %}
+      <h1 class="h-xl rv" style="--i:1">{{ s.name }}</h1>
+      <p class="lede rv" style="--i:2">{{ s.summary }}</p>
+      <dl class="svc__facts rv" style="--i:3">
+        <div class="svc__fact">
+          <dt>Typical fee</dt>
+          <dd>{% if s.price_from %}{{ s.price_from|money }}{% if s.price_to and s.price_to != s.price_from %}&ndash;{{ s.price_to|money }}{% endif %}{% else %}On assessment{% endif %}</dd>
+        </div>
+        <div class="svc__fact">
+          <dt>Chair time</dt>
+          <dd>{% if s.duration_min %}{{ s.duration_min }} min{% else %}Varies{% endif %}</dd>
+        </div>
+        <div class="svc__fact">
+          <dt>Visits</dt>
+          <dd>{{ s.sittings or 'Discussed at consultation' }}</dd>
+        </div>
+      </dl>
+      <div class="hero__cta rv" style="--i:4">
+        <a class="btn btn--primary btn--lg" href="#book">Book this treatment{{ arrow() }}</a>
+        {% if s.emi_eligible %}<a class="btn btn--line btn--lg" href="/emi-and-payment#calculator">Work out the EMI</a>{% endif %}
+      </div>
+    </div>
+    {% if s.media_id %}
+    <figure class="svc__art rv rv--scale" style="--i:2">
+      <img src="{{ media_url(s.media_id, 'medium') }}" alt="{{ media_alt(s.media_id) }}" width="1000" height="850">
+    </figure>
+    {% endif %}
+  </div>
+</section>
+
+<section class="sect sect--light" style="padding-top:0">
+  <div class="shell svc__body">
+    <div class="svc__copy rv rv--fade">
+      {% for para in s.body|paragraphs %}<p>{{ para }}</p>{% endfor %}
+    </div>
+
+    <aside class="aside">
+      <div class="asidecard asidecard--tint rv rv--right">
+        <h3>What the quote includes</h3>
+        <p>The consultation, the scan needed to plan it, and the treatment itself as listed on your
+           estimate. Anything the scan shows you also need is quoted separately, before we start.</p>
+      </div>
+      {% if s.emi_eligible and plans %}
+      <div class="asidecard rv rv--right" style="--i:1">
+        <h3>From {{ (plans[0].quote.monthly_emi if plans[0].quote else 0)|money }} a month</h3>
+        <p>{{ plans[0].name }} on {{ (s.price_from or 0)|money }}. The calculator on the EMI page
+           shows every plan you would qualify for.</p>
+        <p style="margin-top:14px"><a class="tlink" href="/emi-and-payment#calculator">Open the calculator{{ arrow() }}</a></p>
+      </div>
+      {% endif %}
+      <div class="asidecard rv rv--right" style="--i:2">
+        <h3>Speak to reception</h3>
+        <p><a class="tlink" href="tel:{{ contact.phone|replace(' ','') }}">{{ contact.phone_display or contact.phone }}</a></p>
+        <p style="margin-top:12px">{{ open_state.label }}{% if open_state.detail %} &middot; {{ open_state.detail }}{% endif %}</p>
+      </div>
+    </aside>
+  </div>
+</section>
+
+{% if related %}
+<section class="sect sect--canvas">
+  <div class="shell">
+    <div class="head2 rv rv--fade">
+      <span class="kicker">Also relevant</span>
+      <h2 class="h-lg">Related treatments</h2>
+    </div>
+    <div class="cards">
+      {% for r in related %}
+      <article class="card rv" style="--i:{{ loop.index0 }}">
+        <a class="card__link" href="/treatments/{{ r.slug }}" aria-label="{{ r.name }}"></a>
+        {% if r.media_id %}
+        <div class="card__media"><img src="{{ media_url(r.media_id, 'medium') }}" alt="{{ media_alt(r.media_id) }}" loading="lazy"></div>
+        {% endif %}
+        <div class="card__body">
+          <h3 class="card__t">{{ r.name }}</h3>
+          <p class="card__d">{{ r.summary|shorten(120) }}</p>
+          <div class="card__meta">
+            <span class="card__price">
+              <b>{% if r.price_from %}{{ r.price_from|money }}{% else %}&nbsp;{% endif %}</b>
+              <span>{{ 'from' if r.price_from else '' }}</span>
+            </span>
+            <span class="card__go">{{ arrow() }}</span>
+          </div>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<section class="sect sect--light" id="book">
+  <div class="shell enq__grid">
+    <div>
+      <span class="kicker rv rv--fade">Book</span>
+      <h2 class="h-lg rv" style="--i:1">Ask about {{ s.name|lower }}</h2>
+      <p class="lede rv" style="--i:2">Reception will ring you back the same working day to fix a
+         consultation. Bring any X-rays or estimates you already have.</p>
+      {% if faqs %}
+      <div class="faqs" data-faqs style="margin-top:34px; max-width:none">
+        {% for f in faqs[:4] %}
+        <div class="faq rv rv--fade" style="--i:{{ loop.index0 }}">
+          <h3 style="font-size:inherit">
+            <button class="faq__q" type="button" aria-expanded="false" aria-controls="sfaq-{{ f.id }}">{{ f.question }}</button>
+          </h3>
+          <div class="faq__a" id="sfaq-{{ f.id }}" role="region">
+            <div class="faq__a-in">{% for para in f.answer|paragraphs %}<p>{{ para }}</p>{% endfor %}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    <div>
+      {{ enquiry_form(services, branches, slots, request.path, 1, 1, 1, s.id, true) }}
+    </div>
+  </div>
+</section>
+{% endblock %}

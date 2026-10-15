@@ -1,0 +1,203 @@
+{% extends "admin/base.html" %}
+{% from "admin/_icons.html" import ico %}
+{% from "admin/_fields.html" import csrf, badge %}
+
+{% block crumb %}
+<div class="top__crumb">
+  <a href="{{ url_for('admin.enquiries_list') }}">Enquiries</a> &rsaquo; {{ row.ref }}
+  &middot; received {{ row.created_at | datetime_fmt }}
+</div>
+{% endblock %}
+
+{% block actions %}
+{% if row.phone %}
+<a class="b" href="tel:{{ row.phone | replace(' ', '') }}">{{ ico('phone') }} Call</a>
+<a class="b" href="https://wa.me/{{ row.phone | replace(' ', '') | replace('+', '') }}?text={{ ('Hello ' ~ row.name ~ ', this is ' ~ brand.name ~ ' about your appointment request ' ~ row.ref ~ '.') | urlencode }}"
+   target="_blank" rel="noopener">WhatsApp</a>
+{% endif %}
+{% if row.email %}<a class="b" href="mailto:{{ row.email }}?subject={{ ('Your enquiry ' ~ row.ref ~ ' - ' ~ brand.name) | urlencode }}">{{ ico('mail') }} Email</a>{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="split-main">
+  <div>
+    <div class="panel">
+      <div class="panel__h">
+        <div>
+          <h2>{{ row.name }}</h2>
+          <p>{{ badge(row.status, tone.get(row.status, '')) }}
+             {% if row.priority != 'normal' %}{{ badge(row.priority ~ ' priority', 'bad' if row.priority == 'high' else '') }}{% endif %}
+             {% if row.is_spam %}{{ badge('spam', 'bad') }}{% endif %}</p>
+        </div>
+      </div>
+      <div class="panel__b">
+        <dl class="kv">
+          <dt>Reference</dt><dd><code>{{ row.ref }}</code></dd>
+          <dt>Phone</dt><dd>{{ row.phone or '—' }}</dd>
+          <dt>Email</dt><dd>{{ row.email or '—' }}</dd>
+          <dt>Treatment</dt><dd>{{ row.service_name or 'Not stated' }}</dd>
+          <dt>Clinic</dt><dd>{{ row.branch_name or 'No preference' }}</dd>
+          <dt>Preferred</dt>
+          <dd>{% if row.preferred_date %}{{ row.preferred_date | date_fmt }}, {{ row.preferred_time or 'any time' }}
+              {% else %}No preference given{% endif %}</dd>
+          <dt>Assigned to</dt><dd>{{ row.assignee_name or 'Nobody yet' }}</dd>
+        </dl>
+
+        {% if row.message %}
+        <div style="margin-top:18px">
+          <b style="font-size:12.5px">What they wrote</b>
+          <div class="note note--plain" style="margin-top:6px; white-space:pre-line">{{ row.message }}</div>
+        </div>
+        {% endif %}
+      </div>
+      <div class="panel__f">
+        <span class="hint">
+          Came from <code>{{ row.source_page or '/' }}</code>
+          {% if utm %}&middot; {% for k, v in utm.items() %}{{ k }}={{ v }} {% endfor %}{% endif %}
+          {% if row.ip %}&middot; {{ row.ip }}{% endif %}
+        </span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel__h"><div><h2>Activity</h2><p>Status changes, assignments and internal notes. Newest first.</p></div></div>
+      <div class="panel__b">
+        <div class="tl">
+          {% for ev in events %}
+          <div class="tl__i">
+            <span class="tl__d {{ 'tl__d--brand' if ev.type in ('status', 'emi') }}">
+              {{ ico('check' if ev.type == 'status' else ('wallet' if ev.type == 'emi' else ('user' if ev.type == 'assign' else 'note'))) }}
+            </span>
+            <span class="tl__c">
+              <b>{{ ev.note }}</b>
+              <span class="tl__w">{{ ev.user_name or 'System' }} &middot; {{ ev.created_at | ago }}</span>
+            </span>
+          </div>
+          {% endfor %}
+          <div class="tl__i">
+            <span class="tl__d">{{ ico('inbox') }}</span>
+            <span class="tl__c">
+              <b>Enquiry received from the website</b>
+              <span class="tl__w">{{ row.created_at | datetime_fmt }}</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if can('emi') %}
+    <div class="panel">
+      <div class="panel__h">
+        <div><h2>EMI</h2>
+          <p>{% if emi_app %}This enquiry already has an application.{% else %}Turn this enquiry into an instalment plan with a schedule.{% endif %}</p></div>
+      </div>
+      {% if emi_app %}
+      <div class="panel__b">
+        <dl class="kv">
+          <dt>Application</dt><dd><a href="{{ url_for('admin.emi_application_detail', app_id=emi_app.id) }}"><code>{{ emi_app.ref }}</code></a></dd>
+          <dt>Plan</dt><dd>{{ emi_app.plan_label }}, {{ emi_app.tenure_months }} months</dd>
+          <dt>Monthly</dt><dd>{{ emi_app.monthly_emi | money }}</dd>
+          <dt>Status</dt><dd>{{ badge(emi_app.status | replace('_', ' '), 'info') }}</dd>
+        </dl>
+      </div>
+      {% else %}
+      <form method="post" action="{{ url_for('admin.enquiry_to_emi', row_id=row.id) }}" data-emi-quote>
+        {{ csrf() }}
+        <div class="panel__b">
+          <div class="fg">
+            <div class="fi fi--5">
+              <label for="amount">Treatment cost</label>
+              <div class="wrapin">
+                <span class="fix">&#8377;</span>
+                <input class="in" id="amount" name="treatment_amount" type="number" min="1000" step="500" required>
+              </div>
+            </div>
+            <div class="fi fi--7">
+              <label for="plan_id">Plan</label>
+              <select class="in" id="plan_id" name="plan_id" required>
+                <option value="">Choose a plan</option>
+                {% for p in plans %}
+                <option value="{{ p.id }}" data-tenure="{{ p.tenure_months }}" data-rate="{{ p.interest_rate }}"
+                        data-fee="{{ p.processing_fee_pct }}" data-down="{{ p.downpayment_pct }}">
+                  {{ p.name }} &middot; {{ p.tenure_months }} months
+                  {{ 'at ' ~ p.interest_rate ~ '%' if p.interest_rate else 'no cost' }}
+                </option>
+                {% endfor %}
+              </select>
+              <span class="hint" data-emi-out></span>
+            </div>
+          </div>
+        </div>
+        <div class="panel__f">
+          <button class="b b--go" type="submit">{{ ico('wallet') }} Create the application</button>
+          <span class="hint">The schedule is generated once you approve it.</span>
+        </div>
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="sticky">
+    <form method="post" action="{{ url_for('admin.enquiry_update', row_id=row.id) }}">
+      {{ csrf() }}
+      <div class="panel">
+        <div class="panel__h"><div><h2>Work this enquiry</h2></div></div>
+        <div class="panel__b">
+          <div class="fg">
+            <div class="fi fi--12">
+              <label for="status">Status</label>
+              <select class="in" id="status" name="status">
+                {% for value, label in statuses %}
+                <option value="{{ value }}" {{ 'selected' if row.status == value }}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="fi fi--12">
+              <label for="priority">Priority</label>
+              <select class="in" id="priority" name="priority">
+                {% for value, label in priorities %}
+                <option value="{{ value }}" {{ 'selected' if row.priority == value }}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="fi fi--12">
+              <label for="assigned_to">Assigned to</label>
+              <select class="in" id="assigned_to" name="assigned_to">
+                <option value="">Nobody</option>
+                {% for u in staff %}
+                <option value="{{ u.id }}" {{ 'selected' if row.assigned_to == u.id }}>{{ u.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="fi fi--12">
+              <label for="note">Add a note</label>
+              <textarea class="in" id="note" name="note" rows="4"
+                        placeholder="Called, no answer. Trying again after 6pm."></textarea>
+              <span class="hint">Internal only. The patient never sees this.</span>
+            </div>
+          </div>
+        </div>
+        <div class="panel__f">
+          <button class="b b--go" type="submit">{{ ico('save') }} Save</button>
+        </div>
+      </div>
+    </form>
+
+    <div class="panel">
+      <div class="panel__h"><div><h2>Housekeeping</h2></div></div>
+      <div class="panel__f">
+        <form method="post" action="{{ url_for('admin.enquiry_spam', row_id=row.id) }}">
+          {{ csrf() }}
+          <button class="b b--sm" type="submit">{{ ico('flag') }} {{ 'Not spam' if row.is_spam else 'Mark as spam' }}</button>
+        </form>
+        <form method="post" action="{{ url_for('admin.enquiry_delete', row_id=row.id) }}"
+              data-confirm="Delete this enquiry permanently?">
+          {{ csrf() }}
+          <button class="b b--sm b--bad" type="submit">{{ ico('trash') }} Delete</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

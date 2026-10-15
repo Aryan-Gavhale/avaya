@@ -1,0 +1,84 @@
+{# The enquiry form. Used by the enquiry section and the treatment pages. #}
+{% macro enquiry_form(services=[], branches=[], slots=[], source='/', show_service=1, show_branch=1, show_slot=1, preset_service=None, compact=False) %}
+<form class="formcard rv rv--scale" method="post" action="{{ url_for('public.enquiry') }}" data-enquiry>
+  <div class="fgrid">
+    <div class="f">
+      <label for="enq-name-{{ compact|int }}">Your name</label>
+      <input id="enq-name-{{ compact|int }}" name="name" required autocomplete="name" placeholder="Full name">
+    </div>
+    <div class="f">
+      <label for="enq-phone-{{ compact|int }}">Mobile number</label>
+      <input id="enq-phone-{{ compact|int }}" name="phone" required inputmode="tel" autocomplete="tel" placeholder="10 digits">
+    </div>
+    <div class="f {{ 'f--full' if not show_service }}">
+      <label for="enq-email-{{ compact|int }}">Email <span>(optional)</span></label>
+      <input id="enq-email-{{ compact|int }}" name="email" type="email" autocomplete="email" placeholder="name@example.com">
+    </div>
+    {% if show_service %}
+    <div class="f">
+      <label for="enq-service-{{ compact|int }}">What do you need?</label>
+      <select id="enq-service-{{ compact|int }}" name="service_id">
+        <option value="">Not sure, please advise</option>
+        {% for s in services %}
+        <option value="{{ s.id }}" {{ 'selected' if preset_service and preset_service == s.id }}>{{ s.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    {% if show_branch and branches %}
+    <div class="f">
+      <label for="enq-branch-{{ compact|int }}">Which clinic?</label>
+      <select id="enq-branch-{{ compact|int }}" name="branch_id">
+        <option value="">Either is fine</option>
+        {% for b in branches %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    <div class="f">
+      <label for="enq-date-{{ compact|int }}">Preferred date <span>(optional)</span></label>
+      <input id="enq-date-{{ compact|int }}" name="preferred_date" type="date">
+    </div>
+    {% if show_slot and slots %}
+    <div class="f f--full">
+      <label>Preferred time</label>
+      <div class="chips" data-chips>
+        {% for slot in slots %}
+        <button class="chip" type="button" data-chip-value="{{ slot }}">{{ slot }}</button>
+        {% endfor %}
+      </div>
+      <input type="hidden" name="preferred_time" data-chip-target>
+    </div>
+    {% endif %}
+    <div class="f f--full">
+      <label for="enq-msg-{{ compact|int }}">Tell us what is going on <span>(optional)</span></label>
+      <textarea id="enq-msg-{{ compact|int }}" name="message" placeholder="Symptoms, how long, anything you have been told already"></textarea>
+    </div>
+    <div class="f f--full">
+      <label class="check">
+        <input type="checkbox" name="urgent" value="1">
+        <span>I am in pain and would like the first available slot</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="f f--hp" aria-hidden="true">
+    <label for="enq-website-{{ compact|int }}">Website</label>
+    <input id="enq-website-{{ compact|int }}" name="website" tabindex="-1" autocomplete="off">
+  </div>
+  <input type="hidden" name="source_page" value="{{ source }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="form_token" value="{{ form_stamp() }}">
+
+  <div class="form__foot">
+    <button class="btn btn--primary btn--lg" type="submit">Request an appointment</button>
+    <span class="form__fine">Reception rings you back to confirm. We do not share your number, and nothing is booked until you have spoken to a person.</span>
+  </div>
+  <p class="fmsg" data-enquiry-msg role="status" aria-live="polite"></p>
+</form>
+
+<div class="done" data-enquiry-done hidden>
+  <h3 data-done-title>{{ S('enquiry.success_title') }}</h3>
+  <span class="done__ref" data-done-ref></span>
+  <p data-done-body>{{ S('enquiry.success_body') }}</p>
+</div>
+{% endmacro %}

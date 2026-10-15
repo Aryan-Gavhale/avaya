@@ -1,0 +1,69 @@
+{# Building blocks for list screens: the filter popover, the column chooser and
+   the chips that show which filters are on. Each is a <details>, so the list
+   still filters with JavaScript switched off. #}
+{% from "admin/_icons.html" import ico %}
+
+{% macro filters_pop(active, reset_url) %}
+<details class="pop" data-pop>
+  <summary class="b b--sm" aria-label="Filters">{{ ico('filter') }} Filters
+    {%- if active %} <span class="cnt">{{ active }}</span>{% endif %}</summary>
+  <div class="pop__p">
+    <h4>Narrow the list</h4>
+    <div class="pop__fields">{{ caller() }}</div>
+    <div class="pop__foot">
+      <a class="b b--sm b--ghost" href="{{ reset_url }}">Clear all</a>
+      <button class="b b--sm b--go" type="submit">Show results</button>
+    </div>
+  </div>
+</details>
+{% endmacro %}
+
+{% macro columns_pop(table) %}
+<details class="pop" data-pop data-colpick="{{ table }}" hidden>
+  <summary class="b b--sm" aria-label="Choose columns">{{ ico('columns') }} Columns</summary>
+  <div class="pop__p" style="width:250px">
+    <h4>Show these columns</h4>
+    <div class="colpick" data-colpick-list></div>
+    <div class="pop__foot">
+      <button class="b b--sm b--ghost" type="button" data-colpick-reset>Reset to default</button>
+    </div>
+  </div>
+</details>
+{% endmacro %}
+
+{# Numbered pages with a window around the current one, so a long list shows
+   1 … 6 7 8 … 14 rather than every page. `params` are the filters to keep. #}
+{% macro pager(endpoint, page, pages, params, total, per) %}
+{% if pages > 1 %}
+{% set keep = {} %}
+{% for k, v in params.items() if k != 'page' and v %}{% set _ = keep.update({k: v}) %}{% endfor %}
+<nav class="pager" aria-label="Pages">
+  <span class="pager__n">{{ (page - 1) * per + 1 }}&ndash;{{ [page * per, total] | min }} of {{ total }}</span>
+  {% if page > 1 %}
+  <a class="pager__step" href="{{ url_for(endpoint, page=page - 1, **keep) }}" rel="prev" aria-label="Previous page">{{ ico('chev-l') }}</a>
+  {% else %}<span class="pager__step is-off" aria-hidden="true">{{ ico('chev-l') }}</span>{% endif %}
+  {% set gap = namespace(shown=false) %}
+  {% for p in range(1, pages + 1) %}
+    {% if p == 1 or p == pages or (p - page) | abs <= 1 or (page <= 3 and p <= 4) or (page >= pages - 2 and p >= pages - 3) %}
+      {% set gap.shown = false %}
+      {% if p == page %}<span class="is-on" aria-current="page">{{ p }}</span>
+      {% else %}<a href="{{ url_for(endpoint, page=p, **keep) }}">{{ p }}</a>{% endif %}
+    {% elif not gap.shown %}
+      {% set gap.shown = true %}<span class="pager__gap" aria-hidden="true">&hellip;</span>
+    {% endif %}
+  {% endfor %}
+  {% if page < pages %}
+  <a class="pager__step" href="{{ url_for(endpoint, page=page + 1, **keep) }}" rel="next" aria-label="Next page">{{ ico('chev-r') }}</a>
+  {% else %}<span class="pager__step is-off" aria-hidden="true">{{ ico('chev-r') }}</span>{% endif %}
+</nav>
+{% endif %}
+{% endmacro %}
+
+{# One removable filter. `f` is the current filter dict; the link is the same
+   list with this one key dropped and every other filter kept. #}
+{% macro chip(endpoint, f, key, label, value) %}
+{% set args = {} %}
+{% for k, v in f.items() if k != key and k != 'page' and v %}{% set _ = args.update({k: v}) %}{% endfor %}
+<span class="chip"><span>{{ label }}</span> {{ value }}
+  <a href="{{ url_for(endpoint, **args) }}" aria-label="Remove the {{ label | lower }} filter">&times;</a></span>
+{% endmacro %}

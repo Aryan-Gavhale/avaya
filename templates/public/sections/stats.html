@@ -1,0 +1,20 @@
+<section class="sect sect--{{ d.tone or 'canvas' }} sect--tight" id="{{ row.anchor or 'sec-' ~ row.id }}" data-sec="{{ row.type }}">
+  <div class="shell">
+    {% if row.title or row.eyebrow %}
+    <div class="head2 rv rv--fade">
+      {% if row.eyebrow %}<span class="kicker">{{ row.eyebrow }}</span>{% endif %}
+      {% if row.title %}<h2 class="h-lg">{{ row.title }}</h2>{% endif %}
+    </div>
+    {% endif %}
+    <div class="stats__grid">
+      {% for item in d.get('items', []) %}
+      <div class="stat rv" style="--i:{{ loop.index0 }}">
+        <div class="stat__n">
+          <span data-count-to="{{ item.value }}">0</span>{% if item.suffix %}<small>{{ item.suffix }}</small>{% endif %}
+        </div>
+        <div class="stat__l">{{ item.label }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
